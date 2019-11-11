@@ -1,11 +1,8 @@
 package parser;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class Parser {
@@ -15,48 +12,50 @@ public class Parser {
 
     private String corpusPath;
 
+    private Runnable onFinishRead;
+    private Runnable onFinishParse;
+
+    protected Boolean readWaiter = Boolean.FALSE;
+    protected Boolean parseWaiter = Boolean.FALSE;
+
     private static final int BATCH_SIZE = 10;
 
     public Parser(String path) {
         IOPool = Executors.newFixedThreadPool(1);
         CPUPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-
         this.corpusPath = path;
     }
 
-    public void start() {
-        String files[] = new File(corpusPath).list();
+    public void start() { new ReadFile(corpusPath, this); }
+    public int getBatchSize() { return Parser.BATCH_SIZE; }
+    public void executeIOTask(Runnable task) { this.IOPool.execute(task); }
+    public void executeCPUTask(Runnable task) { this.CPUPool.execute(task); }
 
-        for (int i = 0; i < files.length; i++)
-            files[i] = corpusPath + "/" + files[i] + "/" + files[i];
 
-
-        for (int i = 0; i < files.length; i += BATCH_SIZE) {
-            final int index = i;
-            IOPool.execute(() -> read(files, index, Math.min(index + BATCH_SIZE, files.length)));
+    public void awaitRead() throws InterruptedException {
+        synchronized (readWaiter) {
+            if (!this.readWaiter) readWaiter.wait();
         }
+        IOPool.shutdown();
+        IOPool.awaitTermination(1, TimeUnit.MINUTES);
+        onFinishRead.run();
     }
 
-    private void read(String[] batch, int start, int end) {
-        byte files[][] = new byte[end - start][];
-
-        try {
-            for (int i = start; i < end; i++) {
-                files[i - start] = Files.readAllBytes(Paths.get(batch[i]));
-                batch[i] = null;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+    public void awaitParse() throws InterruptedException {
+        synchronized (parseWaiter) {
+            if (!this.parseWaiter) parseWaiter.wait();
         }
-
-       CPUPool.execute(() -> separate(files));
+        CPUPool.shutdown();
+        CPUPool.awaitTermination(1, TimeUnit.MINUTES);
+        onFinishParse.run();
     }
 
-    private void separate(byte[][] batch) {
-        for (int i = 0; i < batch.length; i++) {
-            //TODO: if the documents need to be saved separably add the <DOC> tag after split.
-            String docs[] = new String(batch[i]).split("<DOC>|</DOC>");
-            for (String doc : docs) CPUPool.execute(new DocumentProcessor(doc));
-        }
+    public void setOnFinishRead(Runnable task) {
+       this.onFinishRead = task;
     }
+
+    public void setOnFinishParse(Runnable task) {
+        this.onFinishParse = task;
+    }
+
 }
