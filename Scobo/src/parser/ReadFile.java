@@ -49,9 +49,9 @@ public class ReadFile {
     private void separate(byte[][] batch) {
         for (int i = 0; i < batch.length; i++) {
             //TODO: if the documents need to be saved separably add the <DOC> tag after split.
-            String docs[] = new String(batch[i]).split("<DOC>|</DOC>");
+            String docs[] = new String(batch[i]).split("\\|<DOC>|</DOC>\n\n");
             for (String doc : docs)
-                parser.executeCPUTask(new Parse(doc));
+                parser.executeCPUTask(new Parse(doc, parser.getUniqueTerms()));
         }
 
         if (fileCount.addAndGet(-batch.length) == 0)
