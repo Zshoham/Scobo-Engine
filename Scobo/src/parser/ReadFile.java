@@ -3,16 +3,22 @@ package parser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 public class ReadFile {
+
     private Parser parser;
 
     private AtomicInteger fileCount;
 
+    private static final Pattern splitPattern = Pattern.compile("\\|<DOC>|</DOC>\n\n");
+
     public ReadFile(String corpusPath, Parser parser) {
-        String files[] = new File(corpusPath).list();
+        String[] files = new File(corpusPath).list();
+        if (files == null) throw new InvalidPathException(corpusPath, "could not find corpus files");
         this.parser = parser;
         this.fileCount = new AtomicInteger(files.length);
 
@@ -25,20 +31,16 @@ public class ReadFile {
             parser.executeIOTask(() -> read(files, index, Math.min(index + parser.getBatchSize(), files.length)));
         }
 
-        synchronized (parser.readWaiter) {
-            parser.readWaiter.notifyAll();
-            parser.readWaiter = Boolean.TRUE;
-        }
+       parser.readLatch.countDown();
     }
 
     private void read(String[] batch, int start, int end) {
-        byte files[][] = new byte[end - start][];
+        byte[][] files = new byte[end - start][];
 
         try {
-            for (int i = start; i < end; i++) {
+            for (int i = start; i < end; i++)
                 files[i - start] = Files.readAllBytes(Paths.get(batch[i]));
-                batch[i] = null;
-            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -48,16 +50,13 @@ public class ReadFile {
 
     private void separate(byte[][] batch) {
         for (int i = 0; i < batch.length; i++) {
-            //TODO: if the documents need to be saved separably add the <DOC> tag after split.
-            String docs[] = new String(batch[i]).split("\\|<DOC>|</DOC>\n\n");
+            String[] docs = splitPattern.split(new String(batch[i]));
+            batch[i] = null;
             for (String doc : docs)
                 parser.executeCPUTask(new Parse(doc, parser.getUniqueTerms()));
         }
 
         if (fileCount.addAndGet(-batch.length) == 0)
-            synchronized (parser.parseWaiter) {
-            parser.parseWaiter.notifyAll();
-            parser.parseWaiter = Boolean.TRUE;
-        }
+            parser.parseLatch.countDown();
     }
 }

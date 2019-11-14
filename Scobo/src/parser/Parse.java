@@ -10,9 +10,13 @@ public class Parse implements Runnable{
 
     private String document;
 
+    private static final Pattern textPattern = Pattern.compile("<TEXT>(.+?)</TEXT>", Pattern.DOTALL);
+    private static final Pattern splitPattern = Pattern.compile("\\s+");
+
+
     private HashSet<String> uniqueTerms;
 
-    public Parse(String document, HashSet uniqueTerms) {
+    public Parse(String document, HashSet<String> uniqueTerms) {
         this.document = document;
         this.uniqueTerms = uniqueTerms;
     }
@@ -22,20 +26,19 @@ public class Parse implements Runnable{
 
     @Override
     public void run() {
-        final Pattern pattern = Pattern.compile("<TEXT>(.+?)</TEXT>", Pattern.DOTALL);
-        final Matcher matcher = pattern.matcher(document);
+        final Matcher matcher = textPattern.matcher(document);
         while (matcher.find()) {
             parseText(matcher.group());
         }
     }
 
-    private static Object monitor = new Object();
+    private static final Object monitor = new Object();
 
     private void parseText(String text) {
-        String[] words = text.split("\\s+");
-        for (int i = 0; i < words.length; i++) {
+        String[] words = splitPattern.split(text);
+        for (String word : words) {
             synchronized (monitor) {
-                uniqueTerms.add(words[i]);
+                uniqueTerms.add(word);
                 wordCount++;
             }
         }
