@@ -1,5 +1,7 @@
 package parser;
 
+import util.Logger;
+
 import java.util.HashSet;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -14,6 +16,8 @@ public class Parser {
 
     CountDownLatch readLatch = new CountDownLatch(1);
     CountDownLatch parseLatch = new CountDownLatch(1);
+
+    Logger LOG = Logger.getLogger();
 
     private HashSet<String> uniqueTerms;
 
