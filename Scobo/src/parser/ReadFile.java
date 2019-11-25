@@ -1,5 +1,7 @@
 package parser;
 
+import util.Logger;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,7 +44,7 @@ public class ReadFile {
                 files[i - start] = Files.readAllBytes(Paths.get(batch[i]));
 
         } catch (IOException e) {
-            e.printStackTrace();
+            parser.LOG.error(e);
         }
 
         parser.executeCPUTask(() -> separate(files));
