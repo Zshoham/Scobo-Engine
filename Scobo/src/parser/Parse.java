@@ -1,8 +1,6 @@
 package parser;
 
 import java.util.HashSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,11 +12,13 @@ public class Parse implements Runnable{
     private static final Pattern splitPattern = Pattern.compile("\\s+");
 
 
+    private Parser parser;
     private HashSet<String> uniqueTerms;
 
-    public Parse(String document, HashSet<String> uniqueTerms) {
+    protected Parse(String document, Parser parser) {
         this.document = document;
-        this.uniqueTerms = uniqueTerms;
+        this.parser = parser;
+        this.uniqueTerms = parser.getUniqueTerms();
     }
 
 
@@ -30,6 +30,8 @@ public class Parse implements Runnable{
         while (matcher.find()) {
             parseText(matcher.group());
         }
+
+        parser.CPUTasks.complete();
     }
 
     private static final Object monitor = new Object();
