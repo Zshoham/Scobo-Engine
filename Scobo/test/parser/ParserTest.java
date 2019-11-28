@@ -22,14 +22,14 @@ public class ParserTest {
     @Test
     public void start() {
         LOG.message("Starting parser test");
+        Timer timer = new Timer();
+        parser.start();
+        parser.awaitRead();
+        System.out.println("corpus read time : " + timer.time() + "ms");
+        parser.awaitParse();
+        System.out.println("parsing time : " + timer.time() + "ms");
+        System.out.println("number of unique terms in corpus : " + parser.getUniqueTerms().size());
+        System.out.println("number of words in the corpus : " + Parse.wordCount);
         Logger.getInstance().flushLog();
-//        Timer timer = new Timer();
-//        parser.start();
-//        parser.awaitRead();
-//        System.out.println("corpus read time : " + timer.time() + "ms");
-//        parser.awaitParse();
-//        System.out.println("parsing time : " + timer.time() + "ms");
-//        System.out.println("number of unique terms in corpus : " + parser.getUniqueTerms().size());
-//        System.out.println("number of words in the corpus : " + Parse.wordCount);
     }
 }

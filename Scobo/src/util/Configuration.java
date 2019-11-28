@@ -18,8 +18,15 @@ public class Configuration {
         return configuration;
     }
 
-
     private static final String CONFIG_PATH = "scobo.properties";
+
+    private String corpusPath;
+    private static final String CORPUS_PATH_PROP = "CorpusPath";
+    private static final String DEFAULT_CORPUS_PATH = "data/";
+
+    private String indexPath;
+    private static final String INDEX_PATH_PROP = "IndexPath";
+    private static final String DEFAULT_INDEX_PATH = "index/";
 
     private int parserBatchSize;
     private static final String PARSER_BATCH_SIZE_PROP = "ParserBatchSize";
@@ -31,7 +38,7 @@ public class Configuration {
 
     private boolean useStemmer;
     private static final String USE_STEMMER_PROP = "UseStemmer";
-    private static final boolean DEFAULT_USE_STEMMER = true;
+    private static final boolean DEFAULT_USE_STEMMER = false;
 
     private Configuration() {
         File configFile = new File(CONFIG_PATH);
@@ -47,6 +54,8 @@ public class Configuration {
             FileReader propReader = new FileReader(CONFIG_PATH);
             Properties properties = new Properties();
             properties.load(propReader);
+            this.corpusPath = properties.getProperty(CORPUS_PATH_PROP);
+            this.indexPath = properties.getProperty(INDEX_PATH_PROP);
             this.parserBatchSize = Integer.parseInt(properties.getProperty(PARSER_BATCH_SIZE_PROP));
             this.logPath = properties.getProperty(LOG_PATH_PROP);
             this.useStemmer = Boolean.parseBoolean(properties.getProperty(USE_STEMMER_PROP));
@@ -58,6 +67,8 @@ public class Configuration {
 
     // initializes a new configuration file.
     private void initConfiguration() {
+        this.corpusPath = DEFAULT_CORPUS_PATH;
+        this.indexPath = DEFAULT_INDEX_PATH;
         this.parserBatchSize = DEFAULT_PARSER_BATCH_SIZE;
         this.logPath = DEFAULT_LOG_PATH;
         this.useStemmer = DEFAULT_USE_STEMMER;
@@ -71,6 +82,8 @@ public class Configuration {
      */
     public void updateConfig() {
         Properties properties = new Properties();
+        properties.setProperty(CORPUS_PATH_PROP, this.corpusPath);
+        properties.setProperty(INDEX_PATH_PROP, this.indexPath);
         properties.setProperty(PARSER_BATCH_SIZE_PROP, String.valueOf(this.parserBatchSize));
         properties.setProperty(LOG_PATH_PROP, this.logPath);
         properties.setProperty(USE_STEMMER_PROP, String.valueOf(this.useStemmer));
@@ -83,6 +96,22 @@ public class Configuration {
             Logger.getInstance().error(e);
         }
     }
+
+    /**
+     * Changes the corpus path, this change only apply's to
+     * the current run of the engine, and will not persist
+     * unless the {@link Configuration#updateConfig()} method is called.
+     * @param corpusPath the size of the batch size.
+     */
+    public void setCorpusPath(String corpusPath) { this.corpusPath = corpusPath; }
+
+    /**
+     * Changes the index path, this change only apply's to
+     * the current run of the engine, and will not persist
+     * unless the {@link Configuration#updateConfig()} method is called.
+     * @param indexPath the size of the batch size.
+     */
+    public void setIndexPath(String indexPath) { this.indexPath = indexPath; }
 
     /**
      * Changes the parsers batch size, this change only apply's to
@@ -108,7 +137,9 @@ public class Configuration {
      */
     public void setUseStemmer(boolean useStemmer) { this.useStemmer = useStemmer; }
 
+    public String getCorpusPath() { return corpusPath; }
+    public String getIndexPath() { return indexPath; }
     public int getParserBatchSize() { return parserBatchSize; }
     public String getLogPath() { return logPath; }
-    public boolean isUseStemmer() { return useStemmer; }
+    public boolean getUseStemmer() { return useStemmer; }
 }

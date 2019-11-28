@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Tooltip?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.Text?>
+
+
+<AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.GUI">
+   <children>
+      <TextField fx:id="corpusPath" layoutX="113.0" layoutY="91.0">
+         <tooltip>
+            <Tooltip text="corpus path" />
+         </tooltip>
+      </TextField>
+      <TextField fx:id="indexPath" layoutX="113.0" layoutY="143.0">
+         <tooltip>
+            <Tooltip text="index path" />
+         </tooltip>
+      </TextField>
+      <Button layoutX="279.0" layoutY="91.0" mnemonicParsing="false" text="browse" onMouseClicked="#onClickBrowseCorpus" />
+      <Button layoutX="279.0" layoutY="143.0" mnemonicParsing="false" text="browse" onMouseClicked="#onClickBrowseIndex" />
+      <Text layoutX="14.0" layoutY="59.0" strokeType="OUTSIDE" strokeWidth="0.0" text="OPTIONS">
+         <font>
+            <Font size="42.0" />
+         </font>
+      </Text>
+      <Text layoutX="14.0" layoutY="108.0" strokeType="OUTSIDE" strokeWidth="0.0" text="corpus path" />
+      <Text layoutX="14.0" layoutY="160.0" strokeType="OUTSIDE" strokeWidth="0.0" text="engine data path" />
+      <Text layoutX="14.0" layoutY="205.0" strokeType="OUTSIDE" strokeWidth="0.0" text="use stemmer" />
+      <CheckBox fx:id="useStemmer" layoutX="113.0" layoutY="192.0" mnemonicParsing="false" />
+      <Separator layoutX="-6.0" layoutY="243.0" prefHeight="0.0" prefWidth="600.0" />
+      <Button layoutX="14.0" layoutY="292.0" mnemonicParsing="false" text="RESET" onMouseClicked="#onClickReset"/>
+      <Button layoutX="14.0" layoutY="257.0" mnemonicParsing="false" text="RUN " onMouseClicked="#onClickRun"/>
+      <Button layoutX="452.0" layoutY="257.0" mnemonicParsing="false" text="LOAD DICTIONARY" onMouseClicked="#onClickLoadDict"/>
+      <Button layoutX="450.0" layoutY="292.0" mnemonicParsing="false" text="SHOW DICTIONARY" onMouseClicked="#onClickShowDict"/>
+   </children>
+</AnchorPane>
