@@ -103,7 +103,9 @@ public class Configuration {
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param corpusPath the size of the batch size.
      */
-    public void setCorpusPath(String corpusPath) { this.corpusPath = corpusPath; }
+    public void setCorpusPath(String corpusPath) {
+        this.corpusPath = corpusPath;
+    }
 
     /**
      * Changes the index path, this change only apply's to

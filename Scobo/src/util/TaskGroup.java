@@ -1,5 +1,8 @@
 package util;
 
+import java.util.Collection;
+import java.util.concurrent.CountDownLatch;
+
 import static util.TaskManager.TaskType;
 
 /**
@@ -16,46 +19,53 @@ import static util.TaskManager.TaskType;
  *     Runnable[] IOTasks = getIO();
  *
  *     // create CPU task group
- *     TaskGroup CPUgroup = TaskManager.getTaskGroup(GroupType.IO);
+ *     TaskGroup CPUGroup = TaskManager.getTaskGroup(GroupType.IO);
  *     //create IO task group
- *     TaskGroup IOgroup = TaskManager.getTaskGroup(GroupType.COMPUTE);
+ *     TaskGroup IOGroup = TaskManager.getTaskGroup(GroupType.COMPUTE);
  *
+ *     // open the group to ensure that awaitCompletion works as intended.
+ *     CPUGroup.openGroup();
  *     // add the CPU tasks to the CPU group
  *     for (Runnable r : CPUTasks)
- *          CPUgroup.add(r);
+ *          CPUGroup.add(r);
+ *     CPUGroup.closeGroup();
  *
+ *     // open the group to ensure that awaitCompletion works as intended.
+ *     IOGroup.openGroup();
  *     // add the IO tasks to the IO group
  *     for (Runnable r : IOTasks)
  *          IOGroup.add(r);
+ *     CPUGroup.closeGroup();
  *
- *      CPUgroup.awaitCompletion();
+ *      CPUGroup.awaitCompletion();
  *      System.out.println("all CPU tasks have been completed");
  *
- *      IOgroup.awaitCompletion();
+ *      IOGroup.awaitCompletion();
  *      System.out.println("all IO tasks have been completed");
  * </pre>
  */
 public final class TaskGroup {
 
-    //TODO: add ability to start the waiting only after all tasks have been added.
-
     /**
      * defines the type of the tasks that will be executed in this group.
      */
     private TaskType type;
-    private CountLatch latch;
     private TaskManager manager;
+    private CountLatch latch;
+    private CountDownLatch addLatch;
 
     protected TaskGroup(TaskManager manager, TaskType type) {
         this.manager = manager;
         this.type = type;
         latch = new CountLatch(0);
+        addLatch = new CountDownLatch(0);
     }
 
     /**
      * Adds a task to the group
      * and schedules it through the TaskManager
      * as a {@link TaskGroup#type} task.
+     *
      * @param task a task to be executed
      */
     public void add(Runnable task) {
@@ -67,9 +77,59 @@ public final class TaskGroup {
     }
 
     /**
+     * Adds a collection of tasks to the group
+     * and schedules them through the TaskManager
+     * as a {@link TaskGroup#type} task.
+     * <p>
+     *     Calling {@link #awaitCompletion()} after using this method ensures that all
+     *     the tasks added will complete before the thread calling
+     *     {@link #awaitCompletion()} will be notified.
+     * </p>
+     *
+     * @param tasks a collection of tasks to add to the group
+     */
+    public void add(Collection<? extends Runnable> tasks) {
+        for (Runnable task : tasks) {
+            if (type == TaskType.COMPUTE)
+                manager.executeCPU(task);
+            if (type == TaskType.IO)
+                manager.executeIO(task);
+        }
+        latch.countUp(tasks.size());
+    }
+
+    /**
+     * Ensures that if a threads calls {@link #awaitCompletion()} on this group, it will not
+     * be notified before {@link TaskGroup#closeGroup()} is called.
+     * <p>
+     *     This is intended in order to ensure that a batch of tasks that cannot
+     *     be executed using {@link #add(Collection)} will all be executed before
+     *     a thread calling {@link #awaitCompletion()} is notified.
+     *     This is done by calling {@code openGroup} before calling {@link #awaitCompletion}
+     *     then adding the tasks to the group, and calling {@link #closeGroup()} when all
+     *     tasks have been added.
+     *     (see the example in the class documentation)
+     * </p>
+     *
+     * @see #closeGroup()
+     */
+    public void openGroup() {
+        this.addLatch = new CountDownLatch(1);
+    }
+
+    /**
+     * Notifies the group that all tasks have been added and threads
+     * that are waiting using {@link #awaitCompletion()} will be notified once
+     * the tasks group is empty.
+     */
+    public void closeGroup() {
+        addLatch.countDown();
+    }
+
+    /**
      * notifies the task group that a task has completed.
      * calling this method is required when a task finishes
-     * in order to update the await mechanism.
+     * in order to update the {@link #awaitCompletion()} mechanism.
      */
     public void complete() {
         latch.countDown();
@@ -81,15 +141,19 @@ public final class TaskGroup {
      * has called the {@link TaskGroup#complete()} method.
      *
      * <p>
-     *     <em>note that the thread may be notified before all
-     *     the planned tasks for this group have completed</em> for example
+     *     <em>The calling thread may be notified before all
+     *     the planned tasks for this group have completed.</em> for example
      *     if there was a delay in adding tasks and tasks 1,2,3 were completed
      *     before task 4 could be added to the group.
      *     When using Task Group take care to have a clear batch of tasks that can be executed.
      * </p>
+     * <p>In order to be assured this issue does not arise use {@link TaskGroup#openGroup()}
      */
     public void awaitCompletion() {
-        try { latch.await(); }
+        try {
+            addLatch.await();
+            latch.await();
+        }
         catch (InterruptedException e) {
             Logger.getInstance().warn(e);
         }

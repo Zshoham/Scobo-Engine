@@ -15,7 +15,7 @@ public class ParserTest {
 
     @Before
     public void setUp() {
-        corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data/corpus").getPath();
+        corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data").getPath();
         parser = new Parser(corpusPath);
     }
 
@@ -28,8 +28,7 @@ public class ParserTest {
         System.out.println("corpus read time : " + timer.time() + "ms");
         parser.awaitParse();
         System.out.println("parsing time : " + timer.time() + "ms");
-        System.out.println("number of unique terms in corpus : " + parser.getUniqueTerms().size());
-        System.out.println("number of words in the corpus : " + Parse.wordCount);
+        System.out.println("unique terms in the corpus: " + parser.getUniqueTerms().size());
         Logger.getInstance().flushLog();
     }
 }

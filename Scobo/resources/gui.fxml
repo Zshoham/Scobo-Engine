@@ -9,8 +9,7 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-
-<AnchorPane prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.GUI">
+<AnchorPane prefHeight="350.0" prefWidth="700.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.Controller">
    <children>
       <TextField fx:id="corpusPath" layoutX="113.0" layoutY="91.0">
          <tooltip>
@@ -22,21 +21,35 @@
             <Tooltip text="index path" />
          </tooltip>
       </TextField>
-      <Button layoutX="279.0" layoutY="91.0" mnemonicParsing="false" text="browse" onMouseClicked="#onClickBrowseCorpus" />
-      <Button layoutX="279.0" layoutY="143.0" mnemonicParsing="false" text="browse" onMouseClicked="#onClickBrowseIndex" />
-      <Text layoutX="14.0" layoutY="59.0" strokeType="OUTSIDE" strokeWidth="0.0" text="OPTIONS">
+      <Button layoutX="279.0" layoutY="91.0" mnemonicParsing="false" onMouseClicked="#onClickBrowseCorpus" text="browse" />
+      <Button layoutX="279.0" layoutY="143.0" mnemonicParsing="false" onMouseClicked="#onClickBrowseIndex" text="browse" />
+      <Text layoutX="247.0" layoutY="59.0" strokeType="OUTSIDE" strokeWidth="0.0" text="OPTIONS">
          <font>
             <Font size="42.0" />
          </font>
       </Text>
       <Text layoutX="14.0" layoutY="108.0" strokeType="OUTSIDE" strokeWidth="0.0" text="corpus path" />
-      <Text layoutX="14.0" layoutY="160.0" strokeType="OUTSIDE" strokeWidth="0.0" text="engine data path" />
+      <Text layoutX="14.0" layoutY="160.0" strokeType="OUTSIDE" strokeWidth="0.0" text="index path" />
       <Text layoutX="14.0" layoutY="205.0" strokeType="OUTSIDE" strokeWidth="0.0" text="use stemmer" />
       <CheckBox fx:id="useStemmer" layoutX="113.0" layoutY="192.0" mnemonicParsing="false" />
-      <Separator layoutX="-6.0" layoutY="243.0" prefHeight="0.0" prefWidth="600.0" />
-      <Button layoutX="14.0" layoutY="292.0" mnemonicParsing="false" text="RESET" onMouseClicked="#onClickReset"/>
-      <Button layoutX="14.0" layoutY="257.0" mnemonicParsing="false" text="RUN " onMouseClicked="#onClickRun"/>
-      <Button layoutX="452.0" layoutY="257.0" mnemonicParsing="false" text="LOAD DICTIONARY" onMouseClicked="#onClickLoadDict"/>
-      <Button layoutX="450.0" layoutY="292.0" mnemonicParsing="false" text="SHOW DICTIONARY" onMouseClicked="#onClickShowDict"/>
+      <Separator layoutY="256.0" prefHeight="3.0" prefWidth="700.0" />
+      <Button layoutX="15.0" layoutY="313.0" mnemonicParsing="false" onMouseClicked="#onClickReset" text="RESET" />
+      <Button layoutX="15.0" layoutY="278.0" mnemonicParsing="false" onMouseClicked="#onClickRun" text="RUN " />
+      <Button layoutX="567.0" layoutY="278.0" mnemonicParsing="false" onMouseClicked="#onClickLoadDict" text="LOAD DICTIONARY" />
+      <Button layoutX="563.0" layoutY="313.0" mnemonicParsing="false" onMouseClicked="#onClickShowDict" text="SHOW DICTIONARY" />
+      <TextField fx:id="logPath" layoutX="465.0" layoutY="91.0">
+         <tooltip>
+            <Tooltip text="log path" />
+         </tooltip>
+      </TextField>
+      <Button layoutX="631.0" layoutY="91.0" mnemonicParsing="false" onMouseClicked="#onClickBrowseLog" text="browse"/>
+      <Text layoutX="350.0" layoutY="108.0" strokeType="OUTSIDE" strokeWidth="0.0" text="log path" />
+      <TextField fx:id="parserBatchSize" layoutX="465.0" layoutY="135.0" prefHeight="25.0" prefWidth="44.0">
+         <tooltip>
+            <Tooltip text="parser batch size" />
+         </tooltip>
+      </TextField>
+      <Text layoutX="350.0" layoutY="152.0" strokeType="OUTSIDE" strokeWidth="0.0" text="parser batch size" />
+      <Button layoutX="328.0" layoutY="217.0" mnemonicParsing="false" text="SAVE" onMouseClicked="#onClickSaveOptions" />
    </children>
 </AnchorPane>

@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class Parse implements Runnable{
+class Parse implements Runnable {
 
     private String document;
 
@@ -14,10 +14,12 @@ public class Parse implements Runnable{
 
     private Parser parser;
     private HashSet<String> uniqueTerms;
+    private final HashSet<String> stopWords;
 
     protected Parse(String document, Parser parser) {
         this.document = document;
         this.parser = parser;
+        this.stopWords = parser.getStopWords();
         this.uniqueTerms = parser.getUniqueTerms();
     }
 
@@ -27,9 +29,10 @@ public class Parse implements Runnable{
     @Override
     public void run() {
         final Matcher matcher = textPattern.matcher(document);
-        while (matcher.find()) {
+        int i = 0;
+        while (matcher.find())
             parseText(matcher.group());
-        }
+
 
         parser.CPUTasks.complete();
     }
@@ -40,8 +43,10 @@ public class Parse implements Runnable{
         String[] words = splitPattern.split(text);
         for (String word : words) {
             synchronized (monitor) {
-                uniqueTerms.add(word);
-                wordCount++;
+                if (!stopWords.contains(word)) {
+                    uniqueTerms.add(word);
+                    wordCount++;
+                }
             }
         }
     }

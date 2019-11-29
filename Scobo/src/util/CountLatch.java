@@ -37,7 +37,7 @@ public class CountLatch {
 
         @Override
         protected int tryAcquireShared(int arg) {
-            return count.get() == releaseValue ? 1 : -1;
+            return count.get() == 0 ? 1 : -1;
         }
 
         @Override
@@ -53,7 +53,6 @@ public class CountLatch {
      */
     private final AtomicLong count;
     private final Sync sync;
-    private volatile long releaseValue;
 
     /**
      * Creates a {@code CountLatch} with a specified
@@ -62,7 +61,6 @@ public class CountLatch {
      * @see CountLatch#count
      */
     public CountLatch(final long initialCount) {
-        this.releaseValue = 0;
         this.count = new AtomicLong(initialCount);
         this.sync = new Sync();
     }
@@ -100,17 +98,28 @@ public class CountLatch {
     }
 
     /**
-     * Increments the count of the latch, releasing all waiting threads if
-     * the count reaches zero.
+     * Increments the count of the latch.
      *
      * @return the new count of the latch
+     * @see #countUp(int)
      */
     public long countUp() {
-        final long current = count.incrementAndGet();
-        if (current == releaseValue)
-            sync.releaseShared(0);
+        return count.incrementAndGet();
+    }
 
-        return current;
+
+    /**
+     * Adds {@code delta} to the count of the latch.
+     *
+     * @param delta the amount to add to the latch
+     * @return the new count of the latch
+     * @see #countUp()
+     */
+    public long countUp(int delta) {
+        if (delta < 0)
+            throw new IllegalArgumentException("countUp does not support negative numbers, use countDown to decrease count instead");
+
+        return count.addAndGet(delta);
     }
 
     /**
@@ -121,7 +130,7 @@ public class CountLatch {
      */
     public long countDown() {
         final long current = count.decrementAndGet();
-        if (current == releaseValue)
+        if (current == 0)
             sync.releaseShared(0);
 
         return current;
