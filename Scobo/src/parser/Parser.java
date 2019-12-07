@@ -10,22 +10,22 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class Parser {
 
-    private static final int BATCH_SIZE = 10;
+    private static final int BATCH_SIZE = Configuration.getInstance().getParserBatchSize();
 
     private String corpusPath;
     private HashSet<String> stopWords;
+    private Stemmer stemmer;
 
     protected TaskGroup IOTasks;
     protected TaskGroup CPUTasks;
-
     protected Logger LOG = Logger.getInstance();
 
     private HashSet<String> uniqueTerms;
-
-    private Stemmer stemmer;
 
     public Parser(String path) {
         IOTasks = TaskManager.getTaskGroup(TaskManager.TaskType.IO);
@@ -38,9 +38,8 @@ public class Parser {
 
     private void loadStopWords(String path) {
         try {
-            String[] words = Files.readString(Paths.get(path + "/stop words.txt")).split("\r\n");
-            stopWords = new HashSet<>();
-            stopWords.addAll(Arrays.asList(words));
+            Stream<String> lines = Files.lines(Paths.get(path + "/stop words.txt"));
+            stopWords = lines.collect(HashSet::new, HashSet::add, HashSet::addAll);
         }
         catch (IOException e) { LOG.error(e); }
     }
@@ -51,15 +50,30 @@ public class Parser {
         return stemmer.toString();
     }
 
-    public void start() { new ReadFile(corpusPath, this); }
+    public void start() {
+        new ReadFile(corpusPath, this);
+
+        new Thread(() -> finish(), "parse waiter").start();
+    }
+
+    public void finish() {
+        this.awaitParse();
+        handleCapitals();
+    }
+
+    public void handleCapitals() {
+        //TODO: handle capitals here.
+    }
 
     public void awaitRead() {
         IOTasks.awaitCompletion();
     }
 
     public void awaitParse() {
+        CPUTasks.openGroup();
         CPUTasks.awaitCompletion();
     }
+
 
     protected int getBatchSize() { return Parser.BATCH_SIZE; }
     public HashSet<String> getUniqueTerms() { return uniqueTerms; }

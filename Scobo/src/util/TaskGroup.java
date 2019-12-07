@@ -37,11 +37,11 @@ import static util.TaskManager.TaskType;
  *          IOGroup.add(r);
  *     CPUGroup.closeGroup();
  *
- *      CPUGroup.awaitCompletion();
- *      System.out.println("all CPU tasks have been completed");
+ *     CPUGroup.awaitCompletion();
+ *     System.out.println("all CPU tasks have been completed");
  *
- *      IOGroup.awaitCompletion();
- *      System.out.println("all IO tasks have been completed");
+ *     IOGroup.awaitCompletion();
+ *     System.out.println("all IO tasks have been completed");
  * </pre>
  */
 public final class TaskGroup {
@@ -52,13 +52,15 @@ public final class TaskGroup {
     private TaskType type;
     private TaskManager manager;
     private CountLatch latch;
-    private CountDownLatch addLatch;
+    private CountDownLatch groupLatch;
+    private volatile boolean isOpen;
 
     protected TaskGroup(TaskManager manager, TaskType type) {
         this.manager = manager;
         this.type = type;
         latch = new CountLatch(0);
-        addLatch = new CountDownLatch(0);
+        groupLatch = new CountDownLatch(0);
+        isOpen = false;
     }
 
     /**
@@ -110,20 +112,28 @@ public final class TaskGroup {
      *     tasks have been added.
      *     (see the example in the class documentation)
      * </p>
+     * <p> Calling {@code openGroup} more than once, has no effect.
      *
      * @see #closeGroup()
      */
-    public void openGroup() {
-        this.addLatch = new CountDownLatch(1);
+    public synchronized void openGroup() {
+        if (!isOpen) {
+            this.isOpen = true;
+            this.groupLatch = new CountDownLatch(1);
+        }
     }
 
     /**
      * Notifies the group that all tasks have been added and threads
      * that are waiting using {@link #awaitCompletion()} will be notified once
      * the tasks group is empty.
+     * <p> Calling {@code closeGroup} more than once, has no effect.
      */
-    public void closeGroup() {
-        addLatch.countDown();
+    public synchronized void closeGroup() {
+        if (isOpen){
+            this.isOpen = false;
+            groupLatch.countDown();
+        }
     }
 
     /**
@@ -147,11 +157,11 @@ public final class TaskGroup {
      *     before task 4 could be added to the group.
      *     When using Task Group take care to have a clear batch of tasks that can be executed.
      * </p>
-     * <p>In order to be assured this issue does not arise use {@link TaskGroup#openGroup()}
+     * <p> In order to be assured this issue does not arise use {@link TaskGroup#openGroup()}
      */
     public void awaitCompletion() {
         try {
-            addLatch.await();
+            groupLatch.await();
             latch.await();
         }
         catch (InterruptedException e) {
