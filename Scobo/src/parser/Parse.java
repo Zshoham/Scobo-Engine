@@ -1,7 +1,10 @@
 package parser;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,7 +26,6 @@ class Parse implements Runnable {
         this.document = document;
         this.parser = parser;
         this.stopWords = parser.getStopWords();
-        this.uniqueTerms = parser.getUniqueTerms();
     }
 
 
@@ -35,8 +37,6 @@ class Parse implements Runnable {
         int i = 0;
         while (matcher.find())
             parseText(matcher.group());
-
-
         parser.CPUTasks.complete();
     }
 
@@ -44,36 +44,53 @@ class Parse implements Runnable {
 
     private void parseText(String text) {
         text = text.replaceAll("\\s+", " ");
-        text = text.replaceAll("[{}():\"|,!@#^&*+=_]", "");
+        text = text.replaceAll("[{}():\"|,!@#^&*+=_]", ""); //TODO: update regex to delete <>[]'...
 
         Matcher m = numericPattern.matcher(text);
         while (m.find())
-            parseNumbers(new NumberExpression(m.start(), m.end(), m.group(0)));
+            parseNumbers(new NumberExpression(m.start(), m.end(), m.group(0), text));
 
         m = hyphenPattern.matcher(text);
         while (m.find())
-            parseHyphenSeparatedExp(new Expression(m.start(), m.end(), m.group(0)));
+            parseHyphenSeparatedExp(new Expression(m.start(), m.end(), m.group(0), text));
 
         m = wordPattern.matcher(text);
         while (m.find())
-            parseWords(new Expression(m.start(), m.end(), m.group(0)));
+            parseWords(new Expression(m.start(), m.end(), m.group(0), text));
     }
 
 
-    //TODO: move the capitalLetters and entities into Parser and convert all collections
-    // to maps of term -> frequency
-    static LinkedList<String> terms = new LinkedList<>();
-    static LinkedList<String> capitalLettersTerms = new LinkedList<>();
-    static LinkedList<String> entities = new LinkedList<>();
+    public static ConcurrentHashMap<String, Integer> terms = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, Integer> capitalLettersTerms = new ConcurrentHashMap<>();
+    public static ConcurrentHashMap<String, Integer> entities = new ConcurrentHashMap<>();
+
+    private void addTerm(String term) {
+        terms.compute(term, (term1, count) -> {
+            if (count == null)
+                return 1;
+            return count + 1;
+        });
+    }
+    private void addCapital(String term) {
+        capitalLettersTerms.compute(term, (term1, count) -> {
+            if (count == null)
+                return 1;
+            return count + 1;
+        });
+    }
+    private void addEntity(String term) {
+        entities.compute(term, (term1, count) -> {
+            if (count == null)
+                return 1;
+            return count + 1;
+        });
+    }
 
     // start is the first digit of the number, end is the last digit of the number
-    private static void parseNumbers(NumberExpression numberExp) {
-        boolean isPartOfFraction = false;
-        boolean isNumerator = false;
-
+    private void parseNumbers(NumberExpression numberExp) {
         if (numberExp.isPartOfFraction()) {
             if (numberExp.isNumerator()) {
-                numberExp = createMixedNumber(numberExp);
+                numberExp = NumberExpression.createMixedNumber(numberExp);
                 if(tryDollars(numberExp)) return;
                 else if(tryPercent(numberExp)) return;
                 else if(tryPlainNumeric(numberExp)) return;
@@ -85,19 +102,28 @@ class Parse implements Runnable {
         else if(tryBetweenFirst(numberExp)) return;
         else if(tryPlainNumeric(numberExp)) return;
     }
-    private static void parseHyphenSeparatedExp(Expression exp){
-        terms.addLast(exp.getExpression());
+    private void parseHyphenSeparatedExp(Expression exp){
+        addTerm(exp.getExpression());
     }
-
-    private static void parseWords(Expression word){
+    private void parseWords(Expression word){
         if(!(word.isPostfixExpression() || word.isDollarExpression() ||
                 word.isMonthExpression() || word.isPercentExpression() || NumberExpression.isNumberExpression(word))){
             if(tryCapitalLetters(word)) return;
-            else terms.addLast(word.getExpression());
+            else if(!parser.isStopWord(word.getExpression())) {
+                String stemWord = parser.stemWord(word.getExpression().toLowerCase());
+                addTerm(stemWord);
+                if(capitalLettersTerms.containsKey(stemWord.toUpperCase()))
+                    moveUpperToLower(stemWord.toUpperCase());
+            }
         }
     }
 
-    private static boolean tryPlainNumeric(NumberExpression numberExp) {
+    private synchronized static void moveUpperToLower(String capLetWord) {
+        terms.computeIfPresent(capLetWord.toLowerCase(), (s, integer) -> integer + capitalLettersTerms.get(capLetWord));
+        capitalLettersTerms.remove(capLetWord);
+    }
+
+    private boolean tryPlainNumeric(NumberExpression numberExp) {
         StringBuilder plainNumber = new StringBuilder();
         if(numberExp.getValue() >= 1000000000)
             plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000000.0)).append("B");
@@ -111,10 +137,10 @@ class Parse implements Runnable {
             else
                 plainNumber.append(NumberExpression.getNumberString(numberExp.getValue()));
         }
-        terms.addLast(plainNumber.toString());
+        addTerm(plainNumber.toString());
         return true;
     }
-    private static boolean tryDate(NumberExpression numberExp) {
+    private boolean tryDate(NumberExpression numberExp) {
         boolean isYear = false;
         if (numberExp.getExpression().length() == 4) isYear = true;
         else if (numberExp.getExpression().length() <= 2) isYear = false;
@@ -135,21 +161,20 @@ class Parse implements Runnable {
             date = Expression.monthTable.get(month.getExpression()) + "-0" + numberExp.getExpression();
         else
             date = Expression.monthTable.get(month.getExpression()) + "-" + numberExp.getExpression();
-        terms.addLast(date);
+        addTerm(date);
         return true;
     }
-    private static boolean tryPercent(NumberExpression numberExp) {
+    private boolean tryPercent(NumberExpression numberExp) {
         Expression next = numberExp.getNextExpression();
         if(next.isPostfixExpression())
             next = next.getNextExpression();
-        if (next.isPercentExpression()){
-            terms.addLast(NumberExpression.getNumberString(numberExp.getValue()) + "%");
-            //TODO: System.out.println(numberExp.getExpression() + "%");
+        if (next.isPercentExpression()) {
+            addTerm(NumberExpression.getNumberString(numberExp.getValue()) + "%");
             return true;
         }
         return false;
     }
-    private static boolean tryDollars(NumberExpression numberExp){
+    private boolean tryDollars(NumberExpression numberExp){
         StringBuilder potentialTerm = new StringBuilder();
         Expression nextExp = numberExp.getNextExpression();
         Expression prevExp = numberExp.getPrevExpression();
@@ -168,10 +193,10 @@ class Parse implements Runnable {
                 potentialTerm.append(NumberExpression.getNumberString(numberExp.getValue()));
             potentialTerm.append(" Dollars");
         }
-        terms.addLast(potentialTerm.toString());
+        addTerm(potentialTerm.toString());
         return true;
     }
-    private static boolean tryBetweenFirst(NumberExpression numberExp){
+    private boolean tryBetweenFirst(NumberExpression numberExp){
         String potentialBetweenStr = numberExp.getPrevExpression().getExpression();
         if(potentialBetweenStr.equals("Between") || potentialBetweenStr.equals("BETWEEN") || potentialBetweenStr.equals("between"))
         {
@@ -180,10 +205,10 @@ class Parse implements Runnable {
             if(potentialAndStr.equals("and") || potentialAndStr.equals("AND") || potentialAndStr.equals("And")) {
                 Expression potentialNumberExp = potentialAndExp.getNextExpression();
                 String potentialNumberStr = potentialNumberExp.getExpression();
-                if(NumberExpression.isNumberExpression(potentialNumberStr)){
+                if(NumberExpression.isNumberExpression(potentialNumberStr)) {
                     StringBuilder hyphenSeparatedNumbers = new StringBuilder();
                     hyphenSeparatedNumbers.append(numberExp.getExpression()).append("-").append(potentialNumberStr);
-                    parseHyphenSeparatedExp(new Expression(numberExp.getStartIndex(), potentialNumberExp.getEndIndex(), hyphenSeparatedNumbers.toString()));
+                    parseHyphenSeparatedExp(new Expression(numberExp.getStartIndex(), potentialNumberExp.getEndIndex(), hyphenSeparatedNumbers.toString(), this.document));
                     return true;
                 }
             }
@@ -192,10 +217,10 @@ class Parse implements Runnable {
     }
 
     //capital letter words - entities or first words
-    private static boolean tryCapitalLetters(Expression word){
+    private boolean tryCapitalLetters(Expression word){
         Expression next = word.getNextExpression();
         Expression prev = word.getPrevExpression();
-        if(Character.isUpperCase(word.getExpression().charAt(0))){
+        if(Character.isUpperCase(word.getExpression().charAt(0))) {
             boolean isEntity = false;
             if(prev.getExpression().length() == 0 ||
                     !Character.isUpperCase(prev.getExpression().charAt(0)) ||
@@ -207,35 +232,25 @@ class Parse implements Runnable {
                     if(word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
                             word.getExpression().charAt(word.getExpression().length() - 1) == ',')
                         break;
-                    word = word.join(next);
+                    word.join(next);
                     next = word.getNextExpression();
                 }
                 if(word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
                         word.getExpression().charAt(word.getExpression().length() - 1) == ',')
-                    word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1));
+                    word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1), this.document);
 
                 if(isEntity)
-                    entities.addLast(word.getExpression());
-                else
-                    capitalLettersTerms.addLast(word.getExpression());
+                    addEntity(word.getExpression());
+                else if(!parser.isStopWord(word.getExpression().toLowerCase())) {
+                    String stemWord = parser.stemWord(word.getExpression().toLowerCase());
+                    if(terms.containsKey(stemWord))
+                        addTerm(stemWord);
+                    else
+                        addCapital(stemWord.toUpperCase());
+                }
             }
             return true;
         }
         return false;
-    }
-
-    //TODO: move to NumberExpression
-    private static NumberExpression createMixedNumber(NumberExpression numerator){
-        int fullExpStartIndex = numerator.getStartIndex();
-        int fullExpEndIndex = numerator.getNextExpression().getEndIndex();
-        StringBuilder fullExp = new StringBuilder();
-        String fullNumber = "0";
-        if(NumberExpression.isNumberExpression(numerator.getPrevExpression())){
-            fullExpStartIndex = numerator.getPrevExpression().getStartIndex();
-            fullNumber = numerator.getPrevExpression().getExpression();
-        }
-        fullExp.append(fullNumber).append(" ").append(numerator.getExpression()).
-                append(numerator.getNextExpression().getExpression());
-        return new NumberExpression(fullExpStartIndex, fullExpEndIndex, fullExp.toString());
     }
 }

@@ -5,13 +5,12 @@ public class NumberExpression extends Expression {
 
     private double expressionValue;
 
-    public NumberExpression(int startIndex, int endIndex, String expression) {
-        super(startIndex, endIndex, expression);
+    public NumberExpression(int startIndex, int endIndex, String expression, String doc) {
+        super(startIndex, endIndex, expression, doc);
         expressionValue = translateValue();
     }
     public NumberExpression(Expression expression) {
-        this(expression.getStartIndex(), expression.getEndIndex(), expression.getExpression());
-        //TODO: if(!isNumberExpression(expression))
+        this(expression.getStartIndex(), expression.getEndIndex(), expression.getExpression(), expression.getDoc());
     }
 
     public double getValue() {
@@ -26,6 +25,7 @@ public class NumberExpression extends Expression {
     }
     public boolean isNumerator() {
         String nextExpression = this.getNextExpression().getExpression();
+        if(nextExpression.equals("/")) return false;
         int slashIndex = nextExpression.indexOf("/");
         if(slashIndex == 0){
             String potentialDenominatorStr = nextExpression.substring(1, nextExpression.length());
@@ -37,7 +37,7 @@ public class NumberExpression extends Expression {
     private boolean isDenominator() {
         String prevExpression = this.getPrevExpression().getExpression();
         int slashIndex = prevExpression.indexOf("/");
-        if(slashIndex == prevExpression.length() - 1){
+        if(!prevExpression.equals("") && slashIndex == prevExpression.length() - 1){
             String potentialDenominatorStr = prevExpression.substring(0, slashIndex);
             if(isNumberExpression(potentialDenominatorStr))
                 return true;
@@ -52,13 +52,14 @@ public class NumberExpression extends Expression {
             String potentialNumeratorStr = nextExpressionStr.substring(0, slashIndex);
             int potentialNumeratorStart = nextExpression.getStartIndex();
             int potentialNumeratorEnd = potentialNumeratorStart + slashIndex;
-            Expression potentialNumerator = new Expression(potentialNumeratorStart, potentialNumeratorEnd, potentialNumeratorStr);
+            Expression potentialNumerator = new Expression(potentialNumeratorStart, potentialNumeratorEnd, potentialNumeratorStr, this.getDoc());
             if(isNumberExpression(potentialNumerator))
                 if((new NumberExpression(potentialNumerator)).isNumerator())
                     return true;
         }
         return false;
     }
+
 
     private double translateValue() {
         return translateValue(this);
@@ -86,7 +87,6 @@ public class NumberExpression extends Expression {
             double numerator = Double.parseDouble(strExp.substring(index, strExp.indexOf("/")));
             index = strExp.indexOf("/") + 1;
             double denominator = Double.parseDouble(strExp.substring(index));
-            //TODO: double fracVal = numerator / denominator;
             value += numerator / denominator;
         }
 
@@ -98,15 +98,35 @@ public class NumberExpression extends Expression {
         return isNumberExpression(exp.getExpression());
     }
     public static boolean isNumberExpression(String strExp){
-        //TODO: change to regex?
+        if(strExp.length() == 0 || !Character.isDigit(strExp.charAt(0)))
+            return false;
+        int countPoints = 0;
+
         for (int i = 0; i < strExp.length(); i++) {
             char c = strExp.charAt(i);
             if (!Character.isDigit(strExp.charAt(i)) && strExp.charAt(i) != ',' && strExp.charAt(i) != '.')
                 return false;
+            if(strExp.charAt(i) == '.')
+                countPoints++;
         }
+        if(countPoints > 1)
+            return false;
         return true;
     }
 
+    public static NumberExpression createMixedNumber(NumberExpression numerator){
+        int fullExpStartIndex = numerator.getStartIndex();
+        int fullExpEndIndex = numerator.getNextExpression().getEndIndex();
+        StringBuilder fullExp = new StringBuilder();
+        String fullNumber = "0";
+        if(NumberExpression.isNumberExpression(numerator.getPrevExpression())){
+            fullExpStartIndex = numerator.getPrevExpression().getStartIndex();
+            fullNumber = numerator.getPrevExpression().getExpression();
+        }
+        fullExp.append(fullNumber).append(" ").append(numerator.getExpression()).
+                append(numerator.getNextExpression().getExpression());
+        return new NumberExpression(fullExpStartIndex, fullExpEndIndex, fullExp.toString(), numerator.getDoc());
+    }
     public static String getNumberString(double number){
         StringBuilder numberStr = new StringBuilder();
         String num = Double.toString(number);
@@ -150,6 +170,6 @@ public class NumberExpression extends Expression {
             else break;
         }
         return numberStr.toString();
-        //TODO: return num;
     }
+
 }

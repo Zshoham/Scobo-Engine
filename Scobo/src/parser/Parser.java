@@ -8,7 +8,8 @@ import util.TaskManager;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.HashSet;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Stream;
 
 public class Parser {
@@ -23,7 +24,9 @@ public class Parser {
     protected TaskGroup CPUTasks;
     protected Logger LOG = Logger.getInstance();
 
-    private HashSet<String> uniqueTerms;
+    private Queue<Map<String, Integer>> capitalLetterWords;
+    private Queue<Map<String, Integer>> entities;
+
 
     public Parser(String path) {
         IOTasks = TaskManager.getTaskGroup(TaskManager.TaskType.IO);
@@ -31,7 +34,8 @@ public class Parser {
         this.corpusPath = path + "/corpus";
         this.stemmer = new Stemmer();
         loadStopWords(path);
-        uniqueTerms = new HashSet<>();
+        capitalLetterWords = new ConcurrentLinkedQueue<>();
+        entities = new ConcurrentLinkedQueue<>();
     }
 
     private void loadStopWords(String path) {
@@ -42,8 +46,16 @@ public class Parser {
         catch (IOException e) { LOG.error(e); }
     }
 
-    private String stemWord(String word) {
-        stemmer.add(word.toCharArray(), word.length());
+    protected synchronized boolean isStopWord(String word) {
+        return stopWords.contains(word);
+    }
+
+    protected String stemWord(String word) {
+        if(!Configuration.getInstance().getUseStemmer())
+            return word;
+        //stemmer.add(word.toCharArray(), word.length());
+        for (int i = 0; i < word.length(); i++)
+            stemmer.add(word.charAt(i));
         stemmer.stem();
         return stemmer.toString();
     }
@@ -74,6 +86,7 @@ public class Parser {
 
 
     protected int getBatchSize() { return Parser.BATCH_SIZE; }
-    public HashSet<String> getUniqueTerms() { return uniqueTerms; }
     protected HashSet<String> getStopWords() { return stopWords; }
+
+
 }

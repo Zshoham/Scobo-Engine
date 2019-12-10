@@ -4,30 +4,31 @@ import java.util.HashSet;
 import java.util.Objects;
 
 public class Expression {
-
-    private int startIndex;    // index to first char of the expression in the text
-    private int endIndex;      // index to char after the last char of the expression in the text
-    private String expression; // the string expression
-
     public static HashMap<String, String> monthTable = buildMonthTable();
     public static HashSet<String> dollarExpressions = buildDollarExpressions();
     public static HashMap<String, Double> numbersPostfixTable = buildNumbersPostfixTable();
 
+
+    private int startIndex;    // index to first char of the expression in the text
+    private int endIndex;      // index to char after the last char of the expression in the text
+    private String expression; // the string expression
+    private String doc;        // the document
+
     public Expression() {
-        this(0, 0, "");
+        this(0, 0, "", "");
     }
 
-    public Expression(int startIndex, int endIndex, String expression) {
+    public Expression(int startIndex, int endIndex, String expression, String doc) {
         this.startIndex = startIndex;
         this.endIndex = endIndex;
         this.expression = expression;
+        this.doc = doc;
     }
 
     public int getStartIndex() { return startIndex; }
-
     public int getEndIndex() { return endIndex; }
-
     public String getExpression() { return expression; }
+    public String getDoc() { return doc; }
 
     public boolean isPercentExpression(){
         return expression.equals("%") || expression.equals("percent") || expression.equals("percentage");
@@ -44,23 +45,55 @@ public class Expression {
     public boolean isPostfixExpression(){
         return numbersPostfixTable.containsKey(this.expression);
     }
-    public boolean isStopWordExpression() {
-        //TODO: implement!
-        return false;
-    }
 
     public Expression getNextExpression(){
-        return getNextExpression(this);
+        int start = this.startIndex;
+        int end = this.endIndex;
+
+        if(start == this.doc.length() || end  > this.doc.length() - 2)
+            return new Expression();
+
+        int nextSpaceIndex = end + 1;
+        while (this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex != this.doc.length() -1)
+            nextSpaceIndex++;
+        if(this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == this.doc.length() -1)
+            nextSpaceIndex++;
+
+        int startIndex = end;
+        int endIndex = nextSpaceIndex;
+        if(this.doc.charAt(end) == ' ')
+            startIndex++;
+        String expression = this.doc.substring(startIndex, endIndex);
+        return new Expression(startIndex, endIndex, expression, this.doc);
     }
     public Expression getPrevExpression(){
-        return getPrevExpression(this);
+        int start = this.startIndex;
+        int end = this.endIndex;
+
+        if (start < 2 || end == 0)
+            return new Expression();
+
+        int prevSpaceIndex = start - 2;
+        while (this.doc.charAt(prevSpaceIndex) != ' ' && prevSpaceIndex != 0)
+            prevSpaceIndex--;
+        int startIndex = prevSpaceIndex;
+        int endIndex = start;
+        if(this.doc.charAt(prevSpaceIndex) == ' ')
+            startIndex += 1;
+        if(this.doc.charAt(start - 1) == ' ')
+            endIndex--;
+        String expression = this.doc.substring(startIndex, endIndex);
+        return new Expression(startIndex, endIndex, expression, this.doc);
     }
 
-    public Expression join(Expression exp) { //TODO: change to void and add exp to this??
+    public void join(Expression exp) {
+        this.endIndex = exp.endIndex;
         StringBuilder expression = new StringBuilder(this.expression);
         expression.append(" ").append(exp.expression);
-        return new Expression(this.startIndex, exp.endIndex, expression.toString());
+        this.expression = expression.toString();
     }
+
+
 
     @Override
     public String toString() {
@@ -80,52 +113,6 @@ public class Expression {
     @Override
     public int hashCode() {
         return Objects.hash(startIndex, endIndex, expression);
-    }
-
-    //TODO: move getNextExpression and getPrevExpression into the the class scope (not static)
-    // and make the Expression constructor accept the document String.
-
-    public static Expression getNextExpression(int start, int end) {
-        if(start == Parser.text.length() || end  > Parser.text.length() - 2)
-            return new Expression();
-
-        int nextSpaceIndex = end + 1;
-        while (Parser.text.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex != Parser.text.length() -1)
-            nextSpaceIndex++;
-        if(Parser.text.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == Parser.text.length() -1)
-            nextSpaceIndex++;
-
-        int startIndex = end;
-        int endIndex = nextSpaceIndex;
-        if(Parser.text.charAt(end) == ' ')
-            startIndex++;
-        String expression = Parser.text.substring(startIndex, endIndex);
-        return new Expression(startIndex, endIndex, expression);
-    }
-
-    public static Expression getNextExpression(Expression exp) {
-        return getNextExpression(exp.startIndex, exp.endIndex);
-    }
-
-    public static Expression getPrevExpression(int start, int end) {
-        if (start < 2 || end == 0)
-            return new Expression();
-
-        int prevSpaceIndex = start - 2;
-        while (Parser.text.charAt(prevSpaceIndex) != ' ' && prevSpaceIndex != 0)
-            prevSpaceIndex--;
-        int startIndex = prevSpaceIndex;
-        int endIndex = start;
-        if(Parser.text.charAt(prevSpaceIndex) == ' ')
-            startIndex += 1;
-        if(Parser.text.charAt(start - 1) == ' ')
-            endIndex--;
-        String expression = Parser.text.substring(startIndex, endIndex);
-        return new Expression(startIndex, endIndex, expression);
-    }
-
-    public static Expression getPrevExpression(Expression exp){
-        return getPrevExpression(exp.startIndex, exp.endIndex);
     }
 
 

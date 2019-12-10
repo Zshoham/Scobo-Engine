@@ -41,8 +41,11 @@ class ReadFile {
         byte[][] files = new byte[end - start][];
 
         try {
-            for (int i = start; i < end; i++)
+            for (int i = start; i < end; i++) {
                 files[i - start] = Files.readAllBytes(Paths.get(batch[i]));
+//                if (new String(files[i - start]).contains("FBIS3-19902"))
+//                    System.out.println(batch[i]);
+            }
 
         } catch (IOException e) {
             parser.LOG.error(e);
