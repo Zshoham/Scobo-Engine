@@ -17,6 +17,8 @@ class Parse implements Runnable {
     private static final Pattern hyphenPattern = Pattern.compile("\\w+([-]\\w+)+");
     private static final Pattern wordPattern = Pattern.compile("(?<![-$])\\b\\w+\\b(?![-])");
 
+    private static final  int MAX_ENTITY_SIZE = 2;
+
 
     private Parser parser;
     private HashSet<String> uniqueTerms;
@@ -56,7 +58,7 @@ class Parse implements Runnable {
 
         m = wordPattern.matcher(text);
         while (m.find())
-            parseWords(new Expression(m.start(), m.end(), m.group(0), text));
+            parseWords(new Expression(m.start(), m.end(), m.group(0), text), m);
     }
 
 
@@ -105,20 +107,22 @@ class Parse implements Runnable {
     private void parseHyphenSeparatedExp(Expression exp){
         addTerm(exp.getExpression());
     }
-    private void parseWords(Expression word){
+    private void parseWords(Expression word, Matcher m){
         if(!(word.isPostfixExpression() || word.isDollarExpression() ||
                 word.isMonthExpression() || word.isPercentExpression() || NumberExpression.isNumberExpression(word))){
-            if(tryCapitalLetters(word)) return;
+            if(tryCapitalLetters(word, m)) return;
             else if(!parser.isStopWord(word.getExpression())) {
                 String stemWord = parser.stemWord(word.getExpression().toLowerCase());
                 addTerm(stemWord);
-                if(capitalLettersTerms.containsKey(stemWord.toUpperCase()))
-                    moveUpperToLower(stemWord.toUpperCase());
+                synchronized (monitor) {
+                    if (capitalLettersTerms.containsKey(stemWord.toUpperCase()))
+                        moveUpperToLower(stemWord.toUpperCase());
+                }
             }
         }
     }
 
-    private synchronized static void moveUpperToLower(String capLetWord) {
+    private void moveUpperToLower(String capLetWord) {
         terms.computeIfPresent(capLetWord.toLowerCase(), (s, integer) -> integer + capitalLettersTerms.get(capLetWord));
         capitalLettersTerms.remove(capLetWord);
     }
@@ -217,6 +221,7 @@ class Parse implements Runnable {
     }
 
     //capital letter words - entities or first words
+    /*
     private boolean tryCapitalLetters(Expression word){
         Expression next = word.getNextExpression();
         Expression prev = word.getPrevExpression();
@@ -252,5 +257,43 @@ class Parse implements Runnable {
             return true;
         }
         return false;
+    }
+     */
+    private boolean tryCapitalLetters(Expression word, Matcher m){
+        handleSingleCapital(word);
+        Expression next = word.getNextExpression();
+        if(Character.isUpperCase(word.getExpression().charAt(0))) {
+            boolean isEntity = false;
+            int countEntity = 1;
+            while (next.getExpression().length() > 0 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
+                isEntity = true;
+                handleSingleCapital(next);
+                if(word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
+                        word.getExpression().charAt(word.getExpression().length() - 1) == ',')
+                    break;
+                word.join(next);
+                next = word.getNextExpression();
+                m.find();
+                countEntity++;
+            }
+            if(word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
+                    word.getExpression().charAt(word.getExpression().length() - 1) == ',')
+                word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1), this.document);
+            if(isEntity)
+                addEntity(word.getExpression());
+            return true;
+        }
+        return false;
+    }
+
+
+    private void handleSingleCapital(Expression word) {
+        if (!parser.isStopWord(word.getExpression().toLowerCase())) {
+            String stemWord = parser.stemWord(word.getExpression().toLowerCase());
+            if (terms.containsKey(stemWord))
+                addTerm(stemWord);
+            else
+                addCapital(stemWord.toUpperCase());
+        }
     }
 }

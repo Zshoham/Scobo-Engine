@@ -19,7 +19,6 @@ public class ParserTest {
     private String corpusPath;
     private Parser parser;
     private Logger LOG = Logger.getInstance();
-    private String firstDoc;
 
     @Before
     public void setUp() throws IOException {
@@ -37,9 +36,9 @@ public class ParserTest {
         System.out.println("corpus read time : " + timer.time() + "ms");
         parser.awaitParse();
         System.out.println("parsing time : " + timer.time() + "ms");
-        System.out.println("terms - " + Parse.terms.size()); //665322
-        System.out.println("capitals  - " + Parse.capitalLettersTerms.size()); //275642
-        System.out.println("entities - " + Parse.entities.size()); //2009279
+        System.out.println("terms - " + Parse.terms.size()); //664,417
+        System.out.println("capitals  - " + Parse.capitalLettersTerms.size()); //505,879
+        System.out.println("entities - " + Parse.entities.size()); //1,656,909
         Logger.getInstance().flushLog();
     }
 }
