@@ -49,7 +49,6 @@ public final class Dictionary {
         dictionary = new ConcurrentHashMap<>(termCount, loadFactor, concurrencyLevel);
     }
 
-
     /**
      * Adds the term to the dictionary, if the term was already contained
      * its statistics will be updated, otherwise the term will be added
@@ -59,11 +58,42 @@ public final class Dictionary {
      * @return true if the dictionary already contained the term, false otherwise.
      */
     protected boolean addTermFromDocument(String term) {
-        AtomicBoolean isNew = new AtomicBoolean(true);
-        // computes this function atomically for the term.
+        // if upper case and lower case exists
+        //      add as lower
+        //
+        // if lower case and upper exists
+        //      set upper case to lower case
+        //
+        // add to document
+
+        String upperCaseTerm = term.toUpperCase();
+        String lowerCaseTerm = term.toLowerCase();
+        boolean isUpperCase = Character.isUpperCase(term.charAt(0));
+
+        synchronized (this) {
+            if (isUpperCase && dictionary.containsKey(lowerCaseTerm))
+                return addTerm(lowerCaseTerm);
+        }
+
+        synchronized (this) {
+            if (!isUpperCase && dictionary.containsKey(upperCaseTerm)) {
+                Term oldTerm = dictionary.remove(upperCaseTerm);
+                oldTerm.term = lowerCaseTerm;
+                dictionary.put(term, oldTerm);
+                return true;
+            }
+        }
+
+        return addTerm(term);
+    }
+
+    // helper function to add a term to the dictionary.
+    private boolean addTerm(String term) {
+        final AtomicBoolean isNew = new AtomicBoolean(true);
+        // compute the terms mapping.
         dictionary.compute(term, (key, value) -> {
             if (value == null)
-                return new Term(term, 1, new TermPosting(term));
+                return new Term(key, 1, new TermPosting(key));
 
             value.termDocumentFrequency++;
             isNew.set(false);
@@ -135,7 +165,7 @@ public final class Dictionary {
 
             String term = contents[0];
             int documentFrequency = Integer.parseInt(contents[1]);
-            short postingFile = Short.parseShort(contents[2]);
+            int postingFile = Integer.parseInt(contents[2]);
 
             TermPosting posting = new TermPosting(term, postingFile);
             res.dictionary.put(term, new Term(term, documentFrequency, posting));
@@ -143,7 +173,4 @@ public final class Dictionary {
 
         return res;
     }
-
-
-
 }

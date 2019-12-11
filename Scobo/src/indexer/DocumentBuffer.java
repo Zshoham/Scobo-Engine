@@ -24,6 +24,7 @@ public class DocumentBuffer {
         if (termCount >= BUFFER_TERM_CAPACITY) {
             indexer.CPUTasks.add(() -> indexer.invert(documents));
             this.documents = new LinkedList<>();
+            this.termCount = 0;
         }
     }
 }

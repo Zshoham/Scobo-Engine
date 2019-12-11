@@ -15,7 +15,7 @@ class ReadFile {
 
     private static final Pattern splitPattern = Pattern.compile("<DOC>(.+?)</DOC>", Pattern.DOTALL);
 
-    private AtomicInteger fileCount;
+    private volatile AtomicInteger fileCount;
 
     protected ReadFile(String corpusPath, Parser parser) {
         String[] files = new File(corpusPath).list();

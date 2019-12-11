@@ -13,7 +13,6 @@ public class Indexer {
 
     private final Dictionary dictionary;
     private final DocumentMap documentMap;
-    private final PostingCache postingCache;
     private final DocumentBuffer buffer;
 
     protected TaskGroup CPUTasks;
@@ -23,7 +22,7 @@ public class Indexer {
         this.CPUTasks = TaskManager.getTaskGroup(TaskType.COMPUTE);
         this.IOTasks = TaskManager.getTaskGroup(TaskType.IO);
         dictionary = new Dictionary();
-        postingCache = new PostingCache(this);
+        PostingCache.initCache(this);
         documentMap = new DocumentMap(this);
         buffer = new DocumentBuffer(this);
     }
@@ -33,8 +32,17 @@ public class Indexer {
     }
 
     public void invert(LinkedList<Document> documents) {
-        //TODO: make a PostingFile factory in PostingCache ?
-        PostingFile newPosting = new PostingFile();
+        PostingFile newPosting;
+        Optional<PostingFile> optional = PostingCache.newPostingFile();
+        if (!optional.isPresent())
+            throw new IllegalStateException("failed to create posting file");
+
+        newPosting = optional.get();
+
+        //we want to hold the new posting file until the
+        // batch of documents is processed and flush it afterwards.
+        newPosting.hold();
+
         for (Document doc : documents) {
             //TODO: move the mapping to the document buffer ?
             int docID = documentMap.addDocument(doc.name);
@@ -51,5 +59,7 @@ public class Indexer {
 
             }
         }
+
+        PostingCache.handleFirstFlush(newPosting);
     }
 }

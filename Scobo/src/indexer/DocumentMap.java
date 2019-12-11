@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Maps document names to document ID's and generates said ID's.
@@ -47,7 +48,7 @@ public final class DocumentMap {
     private static final float LOAD_FACTOR = 0.75f;
 
     private HashMap<Integer, String> documents;
-    private volatile int size;
+    private volatile AtomicInteger size;
     private BufferedWriter fileWriter;
 
     private enum MODE {ADD, LOOKUP}
@@ -87,12 +88,13 @@ public final class DocumentMap {
         if (mode == MODE.LOOKUP)
             return -1;
 
-        int docID = size++;
+        int docID = size.getAndIncrement();
         this.documents.put(docID, docName);
 
-        if (size >= LOADED_MAP_SIZE * LOAD_FACTOR) {
+        if (docID >= LOADED_MAP_SIZE * LOAD_FACTOR) {
             indexer.IOTasks.add(() -> dump(this.documents, fileWriter));
             this.documents = new HashMap<>(LOADED_MAP_SIZE, LOAD_FACTOR);
+            size.set(0);
         }
 
         return docID;
@@ -151,6 +153,8 @@ public final class DocumentMap {
                         .append("|")
                         .append(entry.getValue())
                         .append("\n");
+
+            writer.flush();
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
