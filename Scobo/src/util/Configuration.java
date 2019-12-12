@@ -22,11 +22,11 @@ public class Configuration {
 
     private String corpusPath;
     private static final String CORPUS_PATH_PROP = "CorpusPath";
-    private static final String DEFAULT_CORPUS_PATH = "data/";
+    private static final String DEFAULT_CORPUS_PATH = "data";
 
     private String indexPath;
     private static final String INDEX_PATH_PROP = "IndexPath";
-    private static final String DEFAULT_INDEX_PATH = "index/";
+    private static final String DEFAULT_INDEX_PATH = "index";
 
     private int parserBatchSize;
     private static final String PARSER_BATCH_SIZE_PROP = "ParserBatchSize";

@@ -32,7 +32,9 @@ class TermPosting {
 
     public synchronized void addDocument(int documentID, int termFrequency) {
         documents.compute(documentID, (docID, frequency) -> {
-            postingFile.onDocumentAdded();
+            if (postingFile != null)
+                postingFile.onDocumentAdded();
+
             if (frequency == null)
                 return termFrequency;
 

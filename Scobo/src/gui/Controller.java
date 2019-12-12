@@ -1,5 +1,6 @@
 package gui;
 
+import indexer.Indexer;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
@@ -88,7 +89,7 @@ public class Controller {
     @FXML
     public void onClickRun() {
         updateOptions();
-        parser = new Parser(configuration.getCorpusPath());
+        parser = new Parser(configuration.getCorpusPath(), new Indexer());
         long t = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();

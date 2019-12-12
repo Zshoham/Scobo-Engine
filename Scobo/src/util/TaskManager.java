@@ -35,7 +35,7 @@ public final class TaskManager {
 
     private TaskManager() {
         // it is assumed the system is using an HDD thus having only one IO thread available.
-        IOExecutor = Executors.newSingleThreadExecutor();
+        IOExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
         CPUExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
     }
 
@@ -57,7 +57,6 @@ public final class TaskManager {
     public static TaskGroup getTaskGroup(TaskType type) {
         return new TaskGroup(getInstance(), type);
     }
-
 
     /**
      * Enqueue's the task into the IO task queue, the task

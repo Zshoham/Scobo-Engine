@@ -1,5 +1,6 @@
 package indexer;
 
+import parser.Document;
 import util.TaskGroup;
 import util.TaskManager;
 import util.TaskManager.TaskType;
@@ -27,8 +28,8 @@ public class Indexer {
         buffer = new DocumentBuffer(this);
     }
 
-    public void index(String docName, HashMap<String, Integer> terms) {
-        buffer.addToBuffer(docName, terms);
+    public void index(Document document) {
+        buffer.addToBuffer(document);
     }
 
     public void invert(LinkedList<Document> documents) {
@@ -45,8 +46,9 @@ public class Indexer {
 
         for (Document doc : documents) {
             //TODO: move the mapping to the document buffer ?
-            int docID = documentMap.addDocument(doc.name);
+            int docID = documentMap.addDocument(doc);
 
+            // add all the terms
             for (Map.Entry<String, Integer> term : doc.terms.entrySet()) {
                 boolean isNew = dictionary.addTermFromDocument(term.getKey());
                 Optional<Term> dictionaryTerm = dictionary.lookup(term.getKey());
@@ -57,6 +59,18 @@ public class Indexer {
                 if (!isNew)
                     newPosting.addTerm(dictionaryTerm.get());
 
+            }
+
+            // add all the entities
+            for (Map.Entry<String, Integer> entity : doc.entities.entrySet()) {
+                boolean isNew = dictionary.addEntityFromDocument(entity.getKey());
+                Optional<Term> dictionaryEntity = dictionary.lookup(entity.getKey());
+
+                if (dictionaryEntity.isPresent()) {
+                    dictionaryEntity.get().termPosting.addDocument(docID, entity.getValue());
+                    if (isNew)
+                        newPosting.addTerm(dictionaryEntity.get());
+                }
             }
         }
 

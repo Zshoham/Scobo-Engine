@@ -4,6 +4,7 @@ import util.Configuration;
 import util.Logger;
 
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,13 +15,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class PostingCache {
 
-    private static final int FIRST_FLUSH_THRESHOLD = 50000;
+    private static final int FIRST_FLUSH_THRESHOLD = 4096; //2^12
+    private static final String postingPath = Configuration.getInstance().getIndexPath() + "/postings/";
+
 
     private static Cache cache;
     private static volatile AtomicInteger runningID;
     private static PostingFile newPostingFile = null;
 
     static void initCache(Indexer indexer) {
+        File postingDir = new File(postingPath);
+
+        if (!postingDir.exists())
+            postingDir.mkdirs();
+
         runningID = new AtomicInteger(0);
         cache = new Cache(indexer);
     }
@@ -64,7 +72,6 @@ public final class PostingCache {
     private static void updatePostingFile(int postingFileID, Map<String, TermPosting> postings) {
         try {
             String path = getPostingFilePath(postingFileID);
-            //TODO: change to a RandomAccessFile
             BufferedWriter writer = new BufferedWriter(new FileWriter(path));
             List<String> postingFile = Files.readAllLines(Paths.get(path));
 
@@ -84,17 +91,15 @@ public final class PostingCache {
                 }
 
                 writer.append(loaded.dump()).append("\n");
-                //TODO: see if the flush is necessary
-                writer.flush();
             }
 
             // now for all the postings that are cached but do not exists in the file
             // we will add new lines to the file with those postings.
             for (TermPosting termPosting : postings.values()) {
-                writer.append(termPosting.toString());
+                writer.append(termPosting.dump()).append("\n");
             }
 
-            writer.flush();
+            writer.close();
 
         } catch (IOException e) {
             Logger.getInstance().error(e);
@@ -102,8 +107,8 @@ public final class PostingCache {
     }
 
     private static String getPostingFilePath(int postingFileID) {
-        String basePath = Configuration.getInstance().getIndexPath() + "postings/";
-        return basePath + postingFileID;
+        String basePath = Configuration.getInstance().getIndexPath() + "/postings/";
+        return basePath + postingFileID + ".txt";
     }
 
     private static class Cache {

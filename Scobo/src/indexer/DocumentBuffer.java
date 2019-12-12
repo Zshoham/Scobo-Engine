@@ -1,11 +1,12 @@
 package indexer;
 
-import java.util.HashMap;
+import parser.Document;
+
 import java.util.LinkedList;
 
 public class DocumentBuffer {
 
-    private static final int BUFFER_TERM_CAPACITY = 10000;
+    private static final int BUFFER_TERM_CAPACITY = 16384; //2^14
 
     private LinkedList<Document> documents;
     private volatile int termCount;
@@ -18,11 +19,12 @@ public class DocumentBuffer {
         this.indexer = indexer;
     }
 
-    public synchronized void addToBuffer(String docName, HashMap<String, Integer> docTerms) {
-        documents.add(new Document(docName, docTerms));
-        termCount += docTerms.size();
+    public synchronized void addToBuffer(Document document) {
+        documents.add(document);
+        termCount += document.entities.size() + document.entities.size();
         if (termCount >= BUFFER_TERM_CAPACITY) {
-            indexer.CPUTasks.add(() -> indexer.invert(documents));
+            indexer.invert(documents);
+            //TODO: indexer.CPUTasks.add(() -> indexer.invert(documents));
             this.documents = new LinkedList<>();
             this.termCount = 0;
         }

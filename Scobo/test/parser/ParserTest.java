@@ -1,7 +1,9 @@
 package parser;
 
+import indexer.Indexer;
 import org.junit.Before;
 import org.junit.Test;
+import util.Configuration;
 import util.Logger;
 import util.Timer;
 
@@ -22,23 +24,24 @@ public class ParserTest {
 
     @Before
     public void setUp() throws IOException {
-        //corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data").getPath();
-        corpusPath = "C:\\Users\\Hod\\Desktop\\bgu\\Year3\\Sem5\\Information Retrival\\corpus";
-        parser = new Parser(corpusPath);
+        corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data").getPath();
+        //corpusPath = "C:\\Users\\Hod\\Desktop\\bgu\\Year3\\Sem5\\Information Retrival\\corpus";
+        Indexer indexer = new Indexer();
+        parser = new Parser(corpusPath, indexer);
+        //Configuration.getInstance().setUseStemmer(true);
     }
 
     @Test
     public void start() {
-        LOG.message("Starting parser test");
         Timer timer = new Timer();
         parser.start();
         parser.awaitRead();
         System.out.println("corpus read time : " + timer.time() + "ms");
         parser.awaitParse();
         System.out.println("parsing time : " + timer.time() + "ms");
-        System.out.println("terms - " + Parse.terms.size()); //664,417
-        System.out.println("capitals  - " + Parse.capitalLettersTerms.size()); //505,879
-        System.out.println("entities - " + Parse.entities.size()); //1,656,909
+//        System.out.println("terms - " + Parse.terms.size()); //664,417
+//        System.out.println("capitals  - " + Parse.capitalLettersTerms.size()); //505,879
+//        System.out.println("entities - " + Parse.entities.size()); //1,656,909
         Logger.getInstance().flushLog();
     }
 }
