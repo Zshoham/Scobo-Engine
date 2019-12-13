@@ -93,6 +93,8 @@ public final class Dictionary {
             if (dictionary.containsKey(upperCaseTerm)) {
                 Term oldTerm = dictionary.remove(upperCaseTerm);
                 oldTerm.term = lowerCaseTerm;
+                //TODO: change the term in the term posting as well
+                // or else save terms as lowercase in the posting file.
                 dictionary.put(lowerCaseTerm, oldTerm);
                 return true;
             }
@@ -142,10 +144,10 @@ public final class Dictionary {
     private boolean addTerm(String term, int count) {
         final AtomicBoolean isPresent = new AtomicBoolean(false);
         // compute the terms mapping.
-        dictionary.merge(term, new Term(term, count, new TermPosting(term)), (key, value) -> {
-            value.termDocumentFrequency += count;
+        dictionary.merge(term, new Term(term, count, new TermPosting(term)), (dictValue, newValue) -> {
+            dictValue.termDocumentFrequency += count;
             isPresent.set(true);
-            return value;
+            return dictValue;
         });
 
         return !isPresent.get();
@@ -153,7 +155,7 @@ public final class Dictionary {
 
     private void addEntity(String entity) {
         // compute the entities mapping.
-        entities.merge(entity, 1, (key, value) -> value + 1);
+        entities.merge(entity, 1, (dictValue, newValue) -> dictValue + 1);
     }
 
     /**
@@ -163,8 +165,16 @@ public final class Dictionary {
      * @return an optional of a {@link Term}, will be empty if the
      * term was not yet added to the dictionary or added with a null mapping.
      */
-    public Optional<Term> lookup(String term) {
-
+    public Optional<Term> lookupTerm(String term) {
+        /*
+        TODO:
+         These checks are preformed in order to avoid
+         adding a upper case term to the dictionary when a
+         lower case version exists (thus having the term added as lower case)
+         only for later lookups of that term to be empty.
+         A better solution might be to make this method
+         smaller and make the double check in the invert method.
+         */
         String lowerCaseTerm = term.toLowerCase();
         String upperCaseTerm = term.toUpperCase();
 
@@ -179,6 +189,10 @@ public final class Dictionary {
         }
 
         return Optional.empty();
+    }
+
+    public Optional<Term> lookupEntity(String entity) {
+        return Optional.ofNullable(dictionary.get(entity));
     }
 
     /**
@@ -198,7 +212,7 @@ public final class Dictionary {
             Term term = entry.getValue();
             file.append(entry.getKey()).append("|");
             file.append(term.termDocumentFrequency).append("|");
-            file.append(term.termPosting.getPostingFile()).append("\n");
+            file.append(term.termPosting.getPostingFileID()).append("\n");
         }
 
         try { Files.write(Paths.get(PATH), file.toString().getBytes()); }

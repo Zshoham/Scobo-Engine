@@ -9,17 +9,19 @@ public class PostingFile {
 
     private final int postingFileID;
 
-    private Map<String, TermPosting> postings;
+    private ConcurrentHashMap<String, TermPosting> postings;
 
-    private static final int BUFFER_MAX_SIZE = 50000;
+    private static final int BUFFER_MAX_SIZE = 32768; //2^15
     private volatile AtomicInteger bufferSize;
     private volatile AtomicBoolean isHolding;
+    protected volatile boolean isWritten;
 
     public PostingFile(int postingFileID) {
         this.postingFileID = postingFileID;
-        this.postings = new ConcurrentHashMap<>();
-        bufferSize = new AtomicInteger(0);
-        isHolding = new AtomicBoolean(false);
+        this.postings = new ConcurrentHashMap<>(BUFFER_MAX_SIZE);
+        this.bufferSize = new AtomicInteger(0);
+        this.isHolding = new AtomicBoolean(false);
+        this.isWritten = false;
     }
 
     public synchronized void addTerm(Term term) {
@@ -49,7 +51,7 @@ public class PostingFile {
     public synchronized void flush() {
         isHolding.set(false);
         PostingCache.queuePostingFileUpdate(this.postingFileID, postings);
-        postings = new ConcurrentHashMap<>();
+        this.postings = new ConcurrentHashMap<>(BUFFER_MAX_SIZE);
         bufferSize.set(0);
     }
 }

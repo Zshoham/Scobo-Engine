@@ -3,7 +3,7 @@ package util;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 
-import static util.TaskManager.TaskType;
+import static util.TaskManager.*;
 
 /**
  * Encapsulates a group of tasks in order to be able to reason
@@ -50,14 +50,16 @@ public final class TaskGroup {
      * defines the type of the tasks that will be executed in this group.
      */
     private TaskType type;
+    private TaskPriority priority;
     private TaskManager manager;
     private CountLatch latch;
     private CountDownLatch groupLatch;
     private volatile boolean isOpen;
 
-    protected TaskGroup(TaskManager manager, TaskType type) {
+    protected TaskGroup(TaskManager manager, TaskType type, TaskPriority priority) {
         this.manager = manager;
         this.type = type;
+        this.priority = priority;
         latch = new CountLatch(0);
         groupLatch = new CountDownLatch(0);
         isOpen = false;
@@ -73,9 +75,9 @@ public final class TaskGroup {
     public void add(Runnable task) {
         latch.countUp();
         if (type == TaskType.COMPUTE)
-            manager.executeCPU(task);
+            manager.executeCPU(task, priority.getVal());
         if (type == TaskType.IO)
-            manager.executeIO(task);
+            manager.executeIO(task, priority.getVal());
     }
 
     /**
@@ -93,9 +95,9 @@ public final class TaskGroup {
     public void add(Collection<? extends Runnable> tasks) {
         for (Runnable task : tasks) {
             if (type == TaskType.COMPUTE)
-                manager.executeCPU(task);
+                manager.executeCPU(task, priority.getVal());
             if (type == TaskType.IO)
-                manager.executeIO(task);
+                manager.executeIO(task, priority.getVal());
         }
         latch.countUp(tasks.size());
     }

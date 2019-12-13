@@ -19,13 +19,14 @@ public class Document {
     }
 
     public void addTerm(String term) {
+        if (term.length() < 2) return;
         length++;
         terms.compute(term, this::computeAdd);
     }
 
     public void addEntity(String entity) {
         length++;
-        entities.compute(entity, this::computeAdd);
+        entities.compute(entity.toUpperCase(), this::computeAdd);
     }
 
     private Integer computeAdd(String term, Integer frequency) {

@@ -1,8 +1,6 @@
 package indexer;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 class TermPosting {
@@ -13,10 +11,12 @@ class TermPosting {
     private Map<Integer, Integer> documents;
 
     private PostingFile postingFile;
+    private int postingFileId;
 
     public TermPosting(String term, int postingFile) {
         this.term = term;
         this.documents = new ConcurrentHashMap<>();
+        this.postingFileId = postingFile;
         this.postingFile = PostingCache.getPostingFileByID(postingFile).orElse(null);
     }
 
@@ -24,13 +24,19 @@ class TermPosting {
         this.term = term;
         this.documents = new ConcurrentHashMap<>();
         this.postingFile = null;
+        postingFileId = -1;
     }
 
-    public Optional<PostingFile> getPostingFile() {
-        return Optional.ofNullable(postingFile);
+    public int getPostingFileID() {
+        return postingFileId;
     }
 
-    public synchronized void addDocument(int documentID, int termFrequency) {
+    public PostingFile getPostingFile() {
+        return this.postingFile;
+    }
+
+
+    public void addDocument(int documentID, int termFrequency) {
         documents.compute(documentID, (docID, frequency) -> {
             if (postingFile != null)
                 postingFile.onDocumentAdded();
@@ -42,7 +48,7 @@ class TermPosting {
         });
     }
 
-    public void addAll(Map<Integer, Integer> documents) {
+    public synchronized void addAll(Map<Integer, Integer> documents) {
         for (Map.Entry<Integer, Integer> document : documents.entrySet()) {
             addDocument(document.getKey(), document.getValue());
         }
@@ -54,6 +60,7 @@ class TermPosting {
 
     public void setPostingFile(PostingFile postingFile) {
         this.postingFile = postingFile;
+        this.postingFileId = postingFile.getID();
     }
 
     public String getTerm() { return this.term; }
@@ -64,7 +71,7 @@ class TermPosting {
             posting.append("|").append(doc.getKey()).append(",").append(doc.getValue());
         }
 
-        this.documents = new HashMap<>();
+        this.documents = new ConcurrentHashMap<>();
         return posting.toString();
     }
 
@@ -74,9 +81,9 @@ class TermPosting {
     public static TermPosting loadPosting(String postingLine) {
         String[] values = postingLine.split("\\|");
         TermPosting res = new TermPosting(values[0]);
-        res.documents = new HashMap<>(values.length - 2);
-        for (String value : values) {
-            String[] kvPair = value.split(",");
+        res.documents = new ConcurrentHashMap<>(Math.max(values.length - 2, 0));
+        for (int i = 1; i < values.length; i++) {
+            String[] kvPair = values[i].split(",");
             res.documents.put(Integer.parseInt(kvPair[0]), Integer.parseInt(kvPair[1]));
         }
 

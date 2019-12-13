@@ -64,11 +64,12 @@ public class Parser {
     public void start() {
         new ReadFile(corpusPath, this);
 
-        new Thread(() -> finish(), "parse waiter").start();
+        new Thread(this::finish, "parse waiter").start();
     }
 
     private void finish() {
         this.awaitParse();
+        indexer.onFinishParser();
     }
 
     public void awaitRead() {

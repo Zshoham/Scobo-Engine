@@ -107,7 +107,6 @@ public class CountLatch {
         return count.incrementAndGet();
     }
 
-
     /**
      * Adds {@code delta} to the count of the latch.
      *

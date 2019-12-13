@@ -103,8 +103,7 @@ public final class DocumentMap {
         this.documents.put(docID, mapping);
 
         if (size >= LOADED_MAP_SIZE * LOAD_FACTOR) {
-            //TODO: indexer.IOTasks.add(() -> dump(this.documents, fileWriter));
-            dump(this.documents, fileWriter);
+            queueDump(indexer, documents, fileWriter);
             this.documents = new HashMap<>(LOADED_MAP_SIZE, LOAD_FACTOR);
             size = 0;
         }
@@ -112,6 +111,7 @@ public final class DocumentMap {
         size++;
         return docID;
     }
+
 
     /**
      * Gets the document name of the given document ID.
@@ -149,13 +149,12 @@ public final class DocumentMap {
         return res;
     }
 
-    /**
-     * Appends all the new mappings added science the last dump to
-     * the document map file.
-     *
-     * @param documents a document map to be saved to the file.
-     */
-    private static synchronized void dump(HashMap<Integer, DocumentMapping> documents, BufferedWriter writer) {
+
+    private static void queueDump(Indexer indexer, HashMap<Integer, DocumentMapping> documents, BufferedWriter writer) {
+        indexer.IOTasks.add(() -> dump(indexer, documents, writer));
+    }
+
+    private static synchronized void dump(Indexer indexer, HashMap<Integer, DocumentMapping> documents, BufferedWriter writer) {
         try {
             for (Map.Entry<Integer, DocumentMapping> entry : documents.entrySet())
                 writer.append(String.valueOf(entry.getKey())).append("|")
@@ -164,6 +163,9 @@ public final class DocumentMap {
             writer.flush();
         } catch (IOException e) {
             Logger.getInstance().error(e);
+        }
+        finally {
+            indexer.IOTasks.complete();
         }
     }
 
