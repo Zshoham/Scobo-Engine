@@ -6,11 +6,11 @@ import util.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiFunction;
 
 /**
  * Maps string representation of a term to a {@link Term} instance holding
@@ -29,6 +29,9 @@ import java.util.function.BiFunction;
 public final class Dictionary {
 
     private static final String PATH = Configuration.getInstance().getIndexPath() + "/dictionary.txt";
+
+    private static final Object termMonitor = new Object();
+    private static final Object entityMonitor = new Object();
 
     //TODO: optimize these values.
     private static final int TERM_COUNT = 2097152; // 2^21
@@ -58,7 +61,7 @@ public final class Dictionary {
      * to the dictionary.
      *
      * @param term a term to add to the dictionary.
-     * @return true if the dictionary already contained the term, false otherwise.
+     * @return true if the entity is new to the dictionary, false otherwise.
      */
     protected boolean addTermFromDocument(String term) {
         // if upper case and lower case exists
@@ -84,23 +87,23 @@ public final class Dictionary {
                 return value;
             });
             if (isPresent.get())
-                return true;
+                return false;
 
-            return addTerm(upperCaseTerm, 1);
+            return addTerm(upperCaseTerm, lowerCaseTerm, 1);
         }
 
-        synchronized (this) {
+        synchronized (termMonitor) {
             if (dictionary.containsKey(upperCaseTerm)) {
                 Term oldTerm = dictionary.remove(upperCaseTerm);
                 oldTerm.term = lowerCaseTerm;
-                //TODO: change the term in the term posting as well
+                //TODO: change the term in the term posting as wel l
                 // or else save terms as lowercase in the posting file.
                 dictionary.put(lowerCaseTerm, oldTerm);
-                return true;
+                return false;
             }
         }
 
-        return addTerm(lowerCaseTerm, 1);
+        return addTerm(lowerCaseTerm, lowerCaseTerm, 1);
     }
 
     /**
@@ -109,7 +112,7 @@ public final class Dictionary {
      * to the dictionary.
      *
      * @param entity a term to add to the dictionary.
-     * @return true if the dictionary already contained the entity, false otherwise.
+     * @return true if the entity has been added to the dictionary and is new to the dictionary, false otherwise.
      */
     protected boolean addEntityFromDocument(String entity) {
         // if entity exists in dictionary
@@ -127,12 +130,12 @@ public final class Dictionary {
             return value;
         });
         if (isPresent.get())
-            return true;
+            return false;
 
-        synchronized (this) {
+        synchronized (entityMonitor) {
             if (entities.containsKey(entity)) {
                 int count = entities.remove(entity);
-                return addTerm(entity, count);
+                return addTerm(entity, entity.toLowerCase(), count);
             }
         }
 
@@ -141,7 +144,9 @@ public final class Dictionary {
     }
 
     // helper function to add a term to the dictionary.
-    private boolean addTerm(String term, int count) {
+    // returns true if the term is new to the dictionary
+    // false otherwise.
+    private boolean addTerm(String term, String postingTerm, int count) {
         final AtomicBoolean isPresent = new AtomicBoolean(false);
         // compute the terms mapping.
         dictionary.merge(term, new Term(term, count, new TermPosting(term)), (dictValue, newValue) -> {
@@ -166,29 +171,14 @@ public final class Dictionary {
      * term was not yet added to the dictionary or added with a null mapping.
      */
     public Optional<Term> lookupTerm(String term) {
-        /*
-        TODO:
-         These checks are preformed in order to avoid
-         adding a upper case term to the dictionary when a
-         lower case version exists (thus having the term added as lower case)
-         only for later lookups of that term to be empty.
-         A better solution might be to make this method
-         smaller and make the double check in the invert method.
-         */
         String lowerCaseTerm = term.toLowerCase();
         String upperCaseTerm = term.toUpperCase();
 
-        synchronized (this) {
-            if (dictionary.containsKey(lowerCaseTerm))
-                return Optional.of(dictionary.get(lowerCaseTerm));
-        }
+        Optional<Term> lowerCase = Optional.ofNullable(dictionary.get(lowerCaseTerm));
+        if (lowerCase.isPresent())
+            return lowerCase;
 
-        synchronized (this) {
-            if (dictionary.containsKey(upperCaseTerm))
-                return Optional.of(dictionary.get(upperCaseTerm));
-        }
-
-        return Optional.empty();
+        return Optional.ofNullable(dictionary.get(upperCaseTerm));
     }
 
     public Optional<Term> lookupEntity(String entity) {
@@ -229,15 +219,14 @@ public final class Dictionary {
      * @throws IOException if the dictionary file is corrupted or not found.
      */
     public synchronized static Dictionary loadDictionary() throws IOException {
-        byte[] fileBytes = new byte[0];
-        try { fileBytes = Files.readAllBytes(Paths.get(PATH)); }
+        List<String> lines = null;
+        try { lines = Files.readAllLines(Paths.get(PATH)); }
         catch (IOException e) {
-            e.printStackTrace();
+           Logger.getInstance().error("cannot load dictionary file");
         }
-        String fileString = new String(fileBytes);
-        String[] lines = fileString.split("\n");
+
         // concurrency level is set to 1 because the returned dictionary is should be immutable.
-        Dictionary res = new Dictionary(lines.length, LOAD_FACTOR, 1);
+        Dictionary res = new Dictionary(lines.size(), LOAD_FACTOR, 1);
 
         for (String line : lines) {
             String[] contents = line.split("\\|");
@@ -248,6 +237,7 @@ public final class Dictionary {
             int documentFrequency = Integer.parseInt(contents[1]);
             int postingFile = Integer.parseInt(contents[2]);
 
+            //TODO: handle loading of posting file pointers
             TermPosting posting = new TermPosting(term, postingFile);
             res.dictionary.put(term, new Term(term, documentFrequency, posting));
         }

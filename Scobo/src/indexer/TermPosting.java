@@ -38,20 +38,11 @@ class TermPosting {
 
     public void addDocument(int documentID, int termFrequency) {
         documents.compute(documentID, (docID, frequency) -> {
-            if (postingFile != null)
-                postingFile.onDocumentAdded();
-
             if (frequency == null)
                 return termFrequency;
 
             return frequency + termFrequency;
         });
-    }
-
-    public synchronized void addAll(Map<Integer, Integer> documents) {
-        for (Map.Entry<Integer, Integer> document : documents.entrySet()) {
-            addDocument(document.getKey(), document.getValue());
-        }
     }
 
     protected synchronized Map<Integer, Integer> getDocuments() {

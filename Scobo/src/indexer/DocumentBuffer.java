@@ -6,7 +6,7 @@ import java.util.LinkedList;
 
 class DocumentBuffer {
 
-    private static final int BUFFER_TERM_CAPACITY = 1024; //2^10
+    private static final int BUFFER_TERM_CAPACITY = 65536 / 2; //2^7
 
     private LinkedList<Document> documents;
     private volatile int termCount;

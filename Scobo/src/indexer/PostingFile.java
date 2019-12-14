@@ -1,57 +1,55 @@
 package indexer;
 
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+
+/*
+Posting File is no longer treated as a buffer, rather it is filled with
+postings and then flushed right away and not loaded until the end of the inverting
+phase.
+once all the documents have been inverted we load pairs of posting files and
+merge them together.
+aa | ab | aa
+ac | ac | ab
+dg | bf | ac1 + ac2
+          bf
+          dg
+ */
 
 public class PostingFile {
 
     private final int postingFileID;
 
-    private ConcurrentHashMap<String, TermPosting> postings;
-
-    private static final int BUFFER_MAX_SIZE = 32768; //2^15
-    private volatile AtomicInteger bufferSize;
-    private volatile AtomicBoolean isHolding;
-    protected volatile boolean isWritten;
+    private Map<String, TermPosting> postings;
 
     public PostingFile(int postingFileID) {
         this.postingFileID = postingFileID;
-        this.postings = new ConcurrentHashMap<>(BUFFER_MAX_SIZE);
-        this.bufferSize = new AtomicInteger(0);
-        this.isHolding = new AtomicBoolean(false);
-        this.isWritten = false;
+        //TODO: find better comparator.
+        this.postings = new HashMap<>();
     }
 
-    public synchronized void addTerm(Term term) {
+    public void addTerm(Term term) {
         term.termPosting.setPostingFile(this);
-        this.postings.put(term.term, term.termPosting);
-    }
-
-    public void hold() {
-        this.isHolding.set(true);
+        // the key of the posting should be the TermPosting's
+        // representation of the term science it might be different
+        // than the Term's
+        this.postings.put(term.termPosting.getTerm(), term.termPosting);
     }
 
     public int getPostingCount() {
         return this.postings.size();
     }
 
-    public synchronized void onDocumentAdded() {
-        int currSize = this.bufferSize.getAndIncrement();
-
-        if (currSize >= BUFFER_MAX_SIZE && !isHolding.get())
-            flush();
-    }
-
     public int getID() {
         return postingFileID;
     }
 
-    public synchronized void flush() {
-        isHolding.set(false);
-        PostingCache.queuePostingFileUpdate(this.postingFileID, postings);
-        this.postings = new ConcurrentHashMap<>(BUFFER_MAX_SIZE);
-        bufferSize.set(0);
+    public void flush() {
+        PostingCache.queuePostingFlush(this.postingFileID, postings);
     }
 }

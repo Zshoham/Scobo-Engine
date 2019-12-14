@@ -25,17 +25,15 @@ public class Indexer {
         CPUTasks.openGroup();
         this.IOTasks = TaskManager.getTaskGroup(TaskType.IO, TaskPriority.HIGH);
         IOTasks.openGroup();
-        dictionary = new Dictionary();
+        this.dictionary = new Dictionary();
         PostingCache.initCache(this);
-        documentMap = new DocumentMap(this);
-        buffer = new DocumentBuffer(this);
+        this.documentMap = new DocumentMap(this);
+        this.buffer = new DocumentBuffer(this);
     }
 
     public void onFinishParser() {
         CPUTasks.closeGroup();
-        PostingCache.onFinishedParse();
-        this.buffer.flushNow();
-        PostingCache.updateAll();
+        buffer.flushNow();
         dictionary.save();
         IOTasks.closeGroup();
     }
@@ -61,47 +59,45 @@ public class Indexer {
 
         newPosting = optional.get();
 
-        // we want to hold the new posting file until the
-        // batch of documents is processed and flush it afterwards.
-        newPosting.hold();
-
         for (Document doc : documents) {
             int docID = documentMap.addDocument(doc);
 
-            // add all the terms
-            for (Map.Entry<String, Integer> term : doc.terms.entrySet()) {
-                boolean isNew = dictionary.addTermFromDocument(term.getKey());
-                Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
-                if (!dictionaryTerm.isPresent())
-                    throw new IllegalStateException("term wasn't properly added to dictionary");
-
-                // if the term is new to the dictionary add it to the new posting file
-                if (isNew)
-                    dictionaryTerm.get().termPosting.setPostingFile(newPosting);
-
-                // update the terms posting and posting file
-                dictionaryTerm.get().termPosting.addDocument(docID, term.getValue());
-                dictionaryTerm.get().termPosting.getPostingFile().addTerm(dictionaryTerm.get());
-            }
-
-            // add all the entities
-            for (Map.Entry<String, Integer> entity : doc.entities.entrySet()) {
-                boolean isNew = dictionary.addEntityFromDocument(entity.getKey());
-                Optional<Term> dictionaryEntity = dictionary.lookupTerm(entity.getKey());
-
-                if (dictionaryEntity.isPresent()) {
-                    // if the entity is new to the dictionary add it to the new posting file
-                    if (isNew)
-                        dictionaryEntity.get().termPosting.setPostingFile(newPosting);
-
-                    // update the entities posting and posting file
-                    dictionaryEntity.get().termPosting.addDocument(docID, entity.getValue());
-                    dictionaryEntity.get().termPosting.getPostingFile().addTerm(dictionaryEntity.get());
-                }
-            }
+            invertTerms(docID, newPosting, doc);
+            invertEntities(docID, newPosting, doc);
         }
 
-        PostingCache.handleFirstFlush(newPosting);
+        newPosting.flush();
         CPUTasks.complete();
+    }
+
+    private void invertTerms(int docID, PostingFile newPosting, Document document) {
+        for (Map.Entry<String, Integer> term : document.terms.entrySet()) {
+            dictionary.addTermFromDocument(term.getKey());
+            Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
+            if (!dictionaryTerm.isPresent())
+                throw new IllegalStateException("term wasn't properly added to dictionary");
+
+            dictionaryTerm.get().termPosting.setPostingFile(newPosting);
+
+            // update the terms posting and posting file
+            dictionaryTerm.get().termPosting.addDocument(docID, term.getValue());
+            newPosting.addTerm(dictionaryTerm.get());
+        }
+    }
+
+    private void invertEntities(int docID, PostingFile newPosting, Document document) {
+        for (Map.Entry<String, Integer> entity : document.entities.entrySet()) {
+            dictionary.addEntityFromDocument(entity.getKey());
+            Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
+
+            if (dictionaryEntity.isPresent()) {
+
+                dictionaryEntity.get().termPosting.setPostingFile(newPosting);
+
+                // update the entities posting and posting file
+                dictionaryEntity.get().termPosting.addDocument(docID, entity.getValue());
+                dictionaryEntity.get().termPosting.getPostingFile().addTerm(dictionaryEntity.get());
+            }
+        }
     }
 }
