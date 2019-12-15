@@ -1,5 +1,6 @@
 package indexer;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,14 +16,14 @@ class TermPosting {
 
     public TermPosting(String term, int postingFile) {
         this.term = term;
-        this.documents = new ConcurrentHashMap<>();
+        this.documents = new HashMap<>();
         this.postingFileId = postingFile;
         this.postingFile = PostingCache.getPostingFileByID(postingFile).orElse(null);
     }
 
     public TermPosting(String term) {
         this.term = term;
-        this.documents = new ConcurrentHashMap<>();
+        this.documents = new HashMap<>();
         this.postingFile = null;
         postingFileId = -1;
     }
@@ -62,7 +63,7 @@ class TermPosting {
             posting.append("|").append(doc.getKey()).append(",").append(doc.getValue());
         }
 
-        this.documents = new ConcurrentHashMap<>();
+        this.documents = new HashMap<>();
         return posting.toString();
     }
 
@@ -72,7 +73,7 @@ class TermPosting {
     public static TermPosting loadPosting(String postingLine) {
         String[] values = postingLine.split("\\|");
         TermPosting res = new TermPosting(values[0]);
-        res.documents = new ConcurrentHashMap<>(Math.max(values.length - 2, 0));
+        res.documents = new HashMap<>(Math.max(values.length - 2, 0));
         for (int i = 1; i < values.length; i++) {
             String[] kvPair = values[i].split(",");
             res.documents.put(Integer.parseInt(kvPair[0]), Integer.parseInt(kvPair[1]));

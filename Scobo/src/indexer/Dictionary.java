@@ -201,8 +201,8 @@ public final class Dictionary {
         for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
             Term term = entry.getValue();
             file.append(entry.getKey()).append("|");
-            file.append(term.termDocumentFrequency).append("|");
-            file.append(term.termPosting.getPostingFileID()).append("\n");
+            file.append(term.termDocumentFrequency).append("|").append("\n");
+//TODO:           file.append(term.termPosting.getPostingFileID()).append("\n");
         }
 
         try { Files.write(Paths.get(PATH), file.toString().getBytes()); }

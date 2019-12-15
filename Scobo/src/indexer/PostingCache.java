@@ -4,6 +4,8 @@ package indexer;
 import util.Configuration;
 import util.Logger;
 
+import static indexer.PostingFile.TemporaryPosting;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -46,7 +48,6 @@ public final class PostingCache {
         }
 
         PostingFile res = new PostingFile(runningID.getAndIncrement());
-        //cache.postingFiles.put(res.getID(), res);
         return Optional.of(res);
     }
 
@@ -55,7 +56,9 @@ public final class PostingCache {
             String path = getPostingFilePath(postingFile.getID());
             BufferedWriter writer = new BufferedWriter(new FileWriter(path));
 
-            for (TermPosting termPosting : postingFile.postings.values()) {
+            postingFile.postings.sort((o1, o2) -> o1.term.compareToIgnoreCase(o2.term));
+
+            for (TemporaryPosting termPosting : postingFile.postings) {
                 writer.append(termPosting.dump()).append("\n");
             }
 

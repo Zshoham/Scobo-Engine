@@ -6,10 +6,7 @@ import util.Logger;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,21 +29,15 @@ public class PostingFile {
 
     private final int postingFileID;
 
-    Map<String, TermPosting> postings;
+    ArrayList<TemporaryPosting> postings;
 
     public PostingFile(int postingFileID) {
         this.postingFileID = postingFileID;
-        this.postings = new HashMap<>();
+        this.postings = new ArrayList<>();
     }
 
     public void addTerm(String term, int documentID, int documentFrequency) {
-        postings.compute(term, (term1, posting) -> {
-            if (posting == null)
-                return new TermPosting(term1);
-
-            posting.addDocument(documentID, documentFrequency);
-            return posting;
-        });
+        postings.add(new TemporaryPosting(term, documentID, documentFrequency));
     }
 
     public int getID() {
@@ -55,5 +46,21 @@ public class PostingFile {
 
     public void flush() {
         PostingCache.flushPosting(this);
+    }
+
+    static class TemporaryPosting {
+        public String term;
+        public int docID;
+        public int docFrequency;
+
+        public TemporaryPosting(String term, int docID, int docFrequency) {
+            this.term = term;
+            this.docID = docID;
+            this.docFrequency = docFrequency;
+        }
+
+        public String dump() {
+            return term + ", " + docID + ", " + docFrequency + "\n";
+        }
     }
 }
