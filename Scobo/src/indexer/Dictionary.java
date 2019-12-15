@@ -89,7 +89,7 @@ public final class Dictionary {
             if (isPresent.get())
                 return false;
 
-            return addTerm(upperCaseTerm, lowerCaseTerm, 1);
+            return addTerm(upperCaseTerm, 1);
         }
 
         synchronized (termMonitor) {
@@ -103,7 +103,7 @@ public final class Dictionary {
             }
         }
 
-        return addTerm(lowerCaseTerm, lowerCaseTerm, 1);
+        return addTerm(lowerCaseTerm, 1);
     }
 
     /**
@@ -135,7 +135,7 @@ public final class Dictionary {
         synchronized (entityMonitor) {
             if (entities.containsKey(entity)) {
                 int count = entities.remove(entity);
-                return addTerm(entity, entity.toLowerCase(), count);
+                return addTerm(entity, count);
             }
         }
 
@@ -146,10 +146,10 @@ public final class Dictionary {
     // helper function to add a term to the dictionary.
     // returns true if the term is new to the dictionary
     // false otherwise.
-    private boolean addTerm(String term, String postingTerm, int count) {
+    private boolean addTerm(String term, int count) {
         final AtomicBoolean isPresent = new AtomicBoolean(false);
         // compute the terms mapping.
-        dictionary.merge(term, new Term(term, count, new TermPosting(term)), (dictValue, newValue) -> {
+        dictionary.merge(term, new Term(term, count, null), (dictValue, newValue) -> {
             dictValue.termDocumentFrequency += count;
             isPresent.set(true);
             return dictValue;

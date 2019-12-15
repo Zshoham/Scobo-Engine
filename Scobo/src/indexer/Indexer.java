@@ -48,10 +48,10 @@ public class Indexer {
     }
 
     public void queueInvert(LinkedList<Document> documents) {
-        this.CPUTasks.add(() -> invert(documents));
+        this.IOTasks.add(() -> invert(documents));
     }
 
-    public synchronized void invert(LinkedList<Document> documents) {
+    public void invert(LinkedList<Document> documents) {
         PostingFile newPosting;
         Optional<PostingFile> optional = PostingCache.newPostingFile();
         if (!optional.isPresent())
@@ -67,7 +67,7 @@ public class Indexer {
         }
 
         newPosting.flush();
-        CPUTasks.complete();
+        IOTasks.complete();
     }
 
     private void invertTerms(int docID, PostingFile newPosting, Document document) {
@@ -77,11 +77,7 @@ public class Indexer {
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
 
-            dictionaryTerm.get().termPosting.setPostingFile(newPosting);
-
-            // update the terms posting and posting file
-            dictionaryTerm.get().termPosting.addDocument(docID, term.getValue());
-            newPosting.addTerm(dictionaryTerm.get());
+            newPosting.addTerm(term.getKey(), docID, term.getValue());
         }
     }
 
@@ -92,11 +88,7 @@ public class Indexer {
 
             if (dictionaryEntity.isPresent()) {
 
-                dictionaryEntity.get().termPosting.setPostingFile(newPosting);
-
-                // update the entities posting and posting file
-                dictionaryEntity.get().termPosting.addDocument(docID, entity.getValue());
-                dictionaryEntity.get().termPosting.getPostingFile().addTerm(dictionaryEntity.get());
+                newPosting.addTerm(entity.getKey(), docID, entity.getValue());
             }
         }
     }

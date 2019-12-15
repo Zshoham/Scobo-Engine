@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 
 public final class PostingCache {
 
@@ -51,16 +50,12 @@ public final class PostingCache {
         return Optional.of(res);
     }
 
-    static void queuePostingFlush(int postingFileID, Map<String, TermPosting> postings) {
-        cache.indexer.IOTasks.add(() -> flushPosting(postingFileID, postings));
-    }
-
-    private static void flushPosting(int postingFileID, Map<String, TermPosting> postings) {
+    static void flushPosting(PostingFile postingFile) {
         try {
-            String path = getPostingFilePath(postingFileID);
+            String path = getPostingFilePath(postingFile.getID());
             BufferedWriter writer = new BufferedWriter(new FileWriter(path));
 
-            for (TermPosting termPosting : postings.values()) {
+            for (TermPosting termPosting : postingFile.postings.values()) {
                 writer.append(termPosting.dump()).append("\n");
             }
 
@@ -69,12 +64,9 @@ public final class PostingCache {
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
-        finally {
-            cache.indexer.IOTasks.complete();
-        }
     }
 
-    private static String getPostingFilePath(int postingFileID) {
+    static String getPostingFilePath(int postingFileID) {
         String basePath = Configuration.getInstance().getIndexPath() + "/postings/";
         return basePath + postingFileID + ".txt";
     }

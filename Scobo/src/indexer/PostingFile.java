@@ -1,5 +1,11 @@
 package indexer;
 
+import parser.Document;
+import util.Logger;
+
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +13,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 
 /*
 Posting File is no longer treated as a buffer, rather it is filled with
@@ -25,24 +32,21 @@ public class PostingFile {
 
     private final int postingFileID;
 
-    private Map<String, TermPosting> postings;
+    Map<String, TermPosting> postings;
 
     public PostingFile(int postingFileID) {
         this.postingFileID = postingFileID;
-        //TODO: find better comparator.
         this.postings = new HashMap<>();
     }
 
-    public void addTerm(Term term) {
-        term.termPosting.setPostingFile(this);
-        // the key of the posting should be the TermPosting's
-        // representation of the term science it might be different
-        // than the Term's
-        this.postings.put(term.termPosting.getTerm(), term.termPosting);
-    }
+    public void addTerm(String term, int documentID, int documentFrequency) {
+        postings.compute(term, (term1, posting) -> {
+            if (posting == null)
+                return new TermPosting(term1);
 
-    public int getPostingCount() {
-        return this.postings.size();
+            posting.addDocument(documentID, documentFrequency);
+            return posting;
+        });
     }
 
     public int getID() {
@@ -50,6 +54,6 @@ public class PostingFile {
     }
 
     public void flush() {
-        PostingCache.queuePostingFlush(this.postingFileID, postings);
+        PostingCache.flushPosting(this);
     }
 }
