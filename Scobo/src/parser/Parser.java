@@ -19,7 +19,6 @@ public class Parser {
 
     private String corpusPath;
     private HashSet<String> stopWords;
-    private Stemmer stemmer;
 
     protected TaskGroup IOTasks;
     protected TaskGroup CPUTasks;
@@ -31,7 +30,6 @@ public class Parser {
         IOTasks = TaskManager.getTaskGroup(TaskManager.TaskType.IO);
         CPUTasks = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
         this.corpusPath = path + "/corpus";
-        this.stemmer = new Stemmer();
         loadStopWords(path);
 
         this.indexer = indexer;
@@ -45,13 +43,14 @@ public class Parser {
         catch (IOException e) { LOG.error(e); }
     }
 
-    protected synchronized boolean isStopWord(String word) {
+    protected boolean isStopWord(String word) {
         return stopWords.contains(word);
     }
 
-    protected synchronized String stemWord(String word) {
+    protected String stemWord(String word) {
         if(!Configuration.getInstance().getUseStemmer())
             return word;
+        Stemmer stemmer = new Stemmer();
         for (int i = 0; i < word.length(); i++)
             stemmer.add(word.charAt(i));
         stemmer.stem();

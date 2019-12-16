@@ -13,7 +13,7 @@ class ReadFile {
 
     private Parser parser;
 
-    private static final Pattern splitPattern = Pattern.compile("<DOC>(.+?)</DOC>", Pattern.DOTALL);
+    private static final Pattern splitPattern = Pattern.compile(Pattern.quote("<DOC>") + "(.+?)" + Pattern.quote("</DOC>"), Pattern.DOTALL);
 
     private volatile AtomicInteger fileCount;
 
@@ -58,6 +58,7 @@ class ReadFile {
             batch[i] = null;
             while (docMatcher.find())
                 parser.CPUTasks.add(new Parse(docMatcher.group(), parser));
+
         }
 
         // we close the group once all the files have been separated

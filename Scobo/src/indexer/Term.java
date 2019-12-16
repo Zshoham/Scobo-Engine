@@ -13,17 +13,13 @@ public class Term {
     public int termDocumentFrequency;
 
     /**
-     * pointer to the start of the posting file entry
-     * belonging to this term.
+     * pointer to the terms line in the inverted file.
      */
-    public TermPosting termPosting;
-
-    //TODO: do this instead of term posting
     public int pointer;
 
-    public Term(String term, int termDocumentFrequency, TermPosting posting) {
+    public Term(String term, int termDocumentFrequency, int pointer) {
         this.term = term;
         this.termDocumentFrequency = termDocumentFrequency;
-        this.termPosting = posting;
+        this.pointer = pointer;
     }
 }

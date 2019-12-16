@@ -133,6 +133,12 @@ public final class DocumentMap {
         return Optional.ofNullable(documents.get(docID));
     }
 
+    public void dumpNow() {
+        dump(indexer, documents, fileWriter);
+        this.documents = new ConcurrentHashMap<>();
+        size.set(0);
+    }
+
     /**
      * Loads the document map in LOOKUP mode
      * into memory and returns a reference to it.
@@ -189,6 +195,7 @@ public final class DocumentMap {
     public static class DocumentMapping {
 
         public String name;
+
         public int maxFrequency;
         public int length;
 

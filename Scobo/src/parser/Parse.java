@@ -1,5 +1,6 @@
 package parser;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,7 +27,6 @@ class Parse implements Runnable {
     }
 
     private String genDocName(String document) {
-        String name = "";
         Matcher m = namePattern.matcher(document);
         if (m.find())
             return m.group(1);

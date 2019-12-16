@@ -3,6 +3,8 @@ package indexer;
 import util.Configuration;
 import util.Logger;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -122,9 +124,7 @@ public final class Dictionary {
         //      remove and add to dictionary
         //
         // add to entities
-
-        //TODO: SUSAN HENSAN, this entity is added to the terms but is said
-        // to only appear in one document.
+        
         AtomicBoolean isPresent = new AtomicBoolean(false);
         dictionary.computeIfPresent(entity, (key, value) -> {
             isPresent.set(true);
@@ -151,7 +151,7 @@ public final class Dictionary {
     private boolean addTerm(String term, int count) {
         final AtomicBoolean isPresent = new AtomicBoolean(false);
         // compute the terms mapping.
-        dictionary.merge(term, new Term(term, count, null), (dictValue, newValue) -> {
+        dictionary.merge(term, new Term(term, count, -1), (dictValue, newValue) -> {
             dictValue.termDocumentFrequency += count;
             isPresent.set(true);
             return dictValue;
@@ -199,16 +199,17 @@ public final class Dictionary {
      * Saves the {@code Dictionary} to the directory specified by {@link Configuration}
      */
     public void save()  {
-        StringBuilder file = new StringBuilder();
-        for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
-            Term term = entry.getValue();
-            file.append(entry.getKey()).append("|");
-            file.append(term.termDocumentFrequency).append("|").append("\n");
-//TODO:           file.append(term.termPosting.getPostingFileID()).append("\n");
-        }
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(PATH));
+            for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
+                Term term = entry.getValue();
+                writer.append(entry.getKey()).append("|");
+                writer.append(String.valueOf(term.termDocumentFrequency)).append("|");
+                writer.append(String.valueOf(term.pointer)).append("\n");
+            }
 
-        try { Files.write(Paths.get(PATH), file.toString().getBytes()); }
-        catch (IOException e) {
+            writer.close();
+        } catch (IOException e) {
             Logger.getInstance().error(e);
         }
     }
@@ -238,10 +239,8 @@ public final class Dictionary {
             String term = contents[0];
             int documentFrequency = Integer.parseInt(contents[1]);
             int postingFile = Integer.parseInt(contents[2]);
-
-            //TODO: handle loading of posting file pointers
-            //TermPosting posting = new TermPosting(term, postingFile);
-            //res.dictionary.put(term, new Term(term, documentFrequency, posting));
+            int pointer = Integer.parseInt(contents[3]);
+            res.dictionary.put(term, new Term(term, documentFrequency, pointer));
         }
 
         return res;
