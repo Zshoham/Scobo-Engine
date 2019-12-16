@@ -170,13 +170,8 @@ class Parse implements Runnable {
 
         if (numberExp.getValue() > 1000000)
             potentialTerm.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000)).append(" M Dollars");
-        else {
-            if (numberExp.getExpression().contains("/"))
-                potentialTerm.append(numberExp.getExpression());
-            else
-                potentialTerm.append(NumberExpression.getNumberString(numberExp.getValue()));
-            potentialTerm.append(" Dollars");
-        }
+        else
+            potentialTerm.append(numberExp.getExpression()).append(" Dollars");
         documentData.addTerm(potentialTerm.toString());
         return true;
     }
