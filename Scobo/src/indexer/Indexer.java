@@ -1,15 +1,18 @@
 package indexer;
 
 import parser.Document;
+import util.Logger;
 import util.TaskGroup;
 import util.TaskManager;
 import util.TaskManager.TaskType;
 import util.TaskManager.TaskPriority;
 
 
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 
 public class Indexer {
 
@@ -20,6 +23,8 @@ public class Indexer {
     protected TaskGroup CPUTasks;
     protected TaskGroup IOTasks;
 
+    private CountDownLatch latch;
+
     public Indexer() {
         this.CPUTasks = TaskManager.getTaskGroup(TaskType.COMPUTE, TaskPriority.HIGH);
         CPUTasks.openGroup();
@@ -29,19 +34,28 @@ public class Indexer {
         PostingCache.initCache(this);
         this.documentMap = new DocumentMap(this);
         this.buffer = new DocumentBuffer(this);
+        this.latch = new CountDownLatch(1);
     }
 
     public void onFinishParser() {
         CPUTasks.closeGroup();
         buffer.flushNow();
+        IOTasks.closeGroup();
+        IOTasks.awaitCompletion();
         PostingCache.merge(dictionary);
         dictionary.save();
-        IOTasks.closeGroup();
+        documentMap.dumpNow();
+        PostingCache.clean();
+        latch.countDown();
     }
 
     public void awaitIndex() {
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
+        try { latch.await(); }
+        catch (InterruptedException e) {
+            Logger.getInstance().warn(e);
+        }
     }
 
     public void index(Document document) {
@@ -87,10 +101,8 @@ public class Indexer {
             dictionary.addEntityFromDocument(entity.getKey());
             Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
 
-            if (dictionaryEntity.isPresent()) {
-
+            if (dictionaryEntity.isPresent())
                 newPosting.addTerm(entity.getKey(), docID, entity.getValue());
-            }
         }
     }
 }

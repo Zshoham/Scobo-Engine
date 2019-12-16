@@ -3,10 +3,11 @@ package indexer;
 import parser.Document;
 
 import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
-class DocumentBuffer {
+public class DocumentBuffer {
 
-    private static final int BUFFER_TERM_CAPACITY = 32768; //2^7
+    private static final int BUFFER_TERM_CAPACITY = 65536; //2^7
 
     private LinkedList<Document> documents;
     private volatile int termCount;
@@ -18,6 +19,7 @@ class DocumentBuffer {
         termCount = 0;
         this.indexer = indexer;
     }
+
 
     public synchronized void addToBuffer(Document document) {
         documents.add(document);

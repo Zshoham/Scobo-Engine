@@ -86,7 +86,7 @@ public class Parser {
      * @param document which document is finished parsing
      */
     protected void onFinishedParse(Document document) {
-        //indexer.index(document);
+        indexer.index(document);
     }
 
     public void start() {

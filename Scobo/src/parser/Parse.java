@@ -26,7 +26,6 @@ class Parse implements Runnable {
     }
 
     private String genDocName(String document) {
-        String name = "";
         Matcher m = namePattern.matcher(document);
         if (m.find())
             return m.group(1);

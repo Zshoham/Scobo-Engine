@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class PostingCache {
 
     private static final String postingPath = Configuration.getInstance().getIndexPath() + "/postings/";
-    private static final String invertedFilePath = postingPath + "InvertedFile.txt";
+    private static final String invertedFilePath = Configuration.getInstance().getIndexPath() + "/InvertedFile.txt";
 
     private static Cache cache;
     private static volatile AtomicInteger runningID;
@@ -66,21 +66,20 @@ public final class PostingCache {
 
     public static void merge(Dictionary dictionary) {
         try {
-            int postingFileCount = runningID.get() + 1;
+            int postingFileCount = runningID.get();
             BufferedWriter invertedFileWriter = new BufferedWriter(new FileWriter(invertedFilePath));
             BufferedReader[] postingReaders = new BufferedReader[postingFileCount];
             boolean isFirstRead = true;
 
             int lineNumber = 0;
-            boolean isFinished = false;
             // find min term of all files.
             ArrayList<String> lines = new ArrayList<>();
             LinkedList<Integer> minLines = new LinkedList<>();
 
-            int counNull = 0;
-            while (counNull < lines.size()) { //TODO: think about the while condition
+            int countNull = 0;
+            while (countNull < postingFileCount) {
                 String minTerm = null;
-                counNull = 0;
+                countNull = 0;
                 for (int i = 0; i < postingFileCount; i++) {
                     if (isFirstRead) {
                         postingReaders[i] = new BufferedReader(new FileReader(getPostingFilePath(i)));
@@ -100,8 +99,11 @@ public final class PostingCache {
                         } else if (term.compareTo(minTerm) == 0)
                             minLines.addLast(i);
                     }
-                    else counNull++;
+                    else countNull++;
                 }
+                if (countNull >= postingFileCount)
+                    break;
+
                 isFirstRead = false;
                 int firstMinLine = minLines.removeFirst();
                 StringBuilder docsStr = new StringBuilder(lines.get(firstMinLine));
@@ -131,6 +133,14 @@ public final class PostingCache {
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
+    }
+
+    public static void clean() {
+        File postingsDir = new File(postingPath);
+        for (File file : postingsDir.listFiles()) {
+            file.delete();
+        }
+        postingsDir.delete();
     }
 
 
