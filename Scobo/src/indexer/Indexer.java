@@ -45,6 +45,7 @@ public class Indexer {
         PostingCache.merge(dictionary);
         dictionary.save();
         documentMap.dumpNow();
+        PostingCache.clean();
         latch.countDown();
     }
 
@@ -100,10 +101,8 @@ public class Indexer {
             dictionary.addEntityFromDocument(entity.getKey());
             Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
 
-            if (dictionaryEntity.isPresent()) {
-
+            if (dictionaryEntity.isPresent())
                 newPosting.addTerm(entity.getKey(), docID, entity.getValue());
-            }
         }
     }
 }

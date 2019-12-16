@@ -48,6 +48,7 @@ class Parse implements Runnable {
 
     private void parseText(String text) {
         text = text.replaceAll("\\s+", " ");
+        //TODO: HOWEVER, JUDGE SUSAN when we remove "," this goes wrong.
         text = text.replaceAll("[{}():\"|,!@#^&*+=_]", ""); //TODO: update regex to delete <>[]'...
 
         Matcher m = numericPattern.matcher(text);

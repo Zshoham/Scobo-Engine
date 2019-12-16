@@ -137,11 +137,11 @@ public final class Dictionary {
         synchronized (entityMonitor) {
             if (entities.containsKey(entity)) {
                 int count = entities.remove(entity);
-                return addTerm(entity, count);
+                return addTerm(entity, count + 1);
             }
         }
 
-        addEntity(entity);
+        entities.put(entity, 1);
         return false;
     }
 
@@ -158,11 +158,6 @@ public final class Dictionary {
         });
 
         return !isPresent.get();
-    }
-
-    private void addEntity(String entity) {
-        // compute the entities mapping.
-        entities.merge(entity, 1, (dictValue, newValue) -> dictValue + 1);
     }
 
     /**

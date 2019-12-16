@@ -135,6 +135,14 @@ public final class PostingCache {
         }
     }
 
+    public static void clean() {
+        File postingsDir = new File(postingPath);
+        for (File file : postingsDir.listFiles()) {
+            file.delete();
+        }
+        postingsDir.delete();
+    }
+
 
     private static class Cache {
 
