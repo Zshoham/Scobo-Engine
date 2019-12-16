@@ -11,7 +11,7 @@ class Parse implements Runnable {
     private static final Pattern namePattern = Pattern.compile(Pattern.quote("<DOCNO>") + "(.+?)" + Pattern.quote("</DOCNO>"), Pattern.DOTALL);
     private static final Pattern numericPattern = Pattern.compile("\\d+([,]\\d)*([.]\\d+)?");
     private static final Pattern hyphenPattern = Pattern.compile("\\w+([-]\\w+)+");
-    private static final Pattern wordPattern = Pattern.compile("(?<![-$])\\b\\w+\\b(?![-])");
+    private static final Pattern wordPattern = Pattern.compile("(?<![-$<])\\b\\w+\\b(?![->])");
 
     private static final int MAX_ENTITY_SIZE = 2;
 
@@ -48,7 +48,7 @@ class Parse implements Runnable {
 
     private void parseText(String text) {
         text = text.replaceAll("\\s+", " ");
-        text = text.replaceAll("[{}():\"|,!@#^&*+=_]", ""); //TODO: update regex to delete <>[]'...
+        text = text.replaceAll("[{}()|@#^&*+=_']", ""); //TODO: update regex to delete []
 
         Matcher m = numericPattern.matcher(text);
         while (m.find())
