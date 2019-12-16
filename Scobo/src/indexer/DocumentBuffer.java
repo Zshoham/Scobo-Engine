@@ -26,7 +26,7 @@ class DocumentBuffer {
             flush();
     }
 
-    public synchronized void flush() {
+    public void flush() {
         indexer.queueInvert(documents);
         this.documents = new LinkedList<>();
         this.termCount = 0;

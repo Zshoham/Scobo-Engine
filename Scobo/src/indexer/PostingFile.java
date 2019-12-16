@@ -1,43 +1,35 @@
 package indexer;
 
-import parser.Document;
-import util.Logger;
-
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
-
-/*
-Posting File is no longer treated as a buffer, rather it is filled with
-postings and then flushed right away and not loaded until the end of the inverting
-phase.
-once all the documents have been inverted we load pairs of posting files and
-merge them together.
-aa | ab | aa
-ac | ac | ab
-dg | bf | ac1 + ac2
-          bf
-          dg
- */
 
 public class PostingFile {
 
     private final int postingFileID;
-
-    ArrayList<TemporaryPosting> postings;
+    private final Map<String, TermPosting> postingDictionary;
 
     public PostingFile(int postingFileID) {
         this.postingFileID = postingFileID;
-        this.postings = new ArrayList<>();
+        postingDictionary = new HashMap<>();
     }
 
     public void addTerm(String term, int documentID, int documentFrequency) {
-        postings.add(new TemporaryPosting(term, documentID, documentFrequency));
+        postingDictionary.compute(term, (termStr, termPosting) -> {
+            if(termPosting == null) {
+                TermPosting newPosting = new TermPosting(term);
+                newPosting.addDocument(documentID, documentFrequency);
+                return newPosting;
+            }
+
+            termPosting.addDocument(documentID, documentFrequency);
+            return termPosting;
+        });
+    }
+
+    protected TermPosting[] getPostings(){
+        TermPosting[] res = new TermPosting[postingDictionary.size()];
+        postingDictionary.values().toArray(res);
+        Arrays.sort(res, Comparator.comparing(TermPosting::getTerm));
+        return res;
     }
 
     public int getID() {
@@ -45,22 +37,7 @@ public class PostingFile {
     }
 
     public void flush() {
-        PostingCache.flushPosting(this);
+        PostingCache.queuePostingFlush(this);
     }
 
-    static class TemporaryPosting {
-        public String term;
-        public int docID;
-        public int docFrequency;
-
-        public TemporaryPosting(String term, int docID, int docFrequency) {
-            this.term = term;
-            this.docID = docID;
-            this.docFrequency = docFrequency;
-        }
-
-        public String dump() {
-            return term + ", " + docID + ", " + docFrequency + "\n";
-        }
-    }
 }

@@ -96,7 +96,7 @@ public final class Dictionary {
             if (dictionary.containsKey(upperCaseTerm)) {
                 Term oldTerm = dictionary.remove(upperCaseTerm);
                 oldTerm.term = lowerCaseTerm;
-                //TODO: change the term in the term posting as wel l
+                //TODO: change the term in the term posting as well
                 // or else save terms as lowercase in the posting file.
                 dictionary.put(lowerCaseTerm, oldTerm);
                 return false;
@@ -123,6 +123,8 @@ public final class Dictionary {
         //
         // add to entities
 
+        //TODO: SUSAN HENSAN, this entity is added to the terms but is said
+        // to only appear in one document.
         AtomicBoolean isPresent = new AtomicBoolean(false);
         dictionary.computeIfPresent(entity, (key, value) -> {
             isPresent.set(true);
@@ -238,8 +240,8 @@ public final class Dictionary {
             int postingFile = Integer.parseInt(contents[2]);
 
             //TODO: handle loading of posting file pointers
-            TermPosting posting = new TermPosting(term, postingFile);
-            res.dictionary.put(term, new Term(term, documentFrequency, posting));
+            //TermPosting posting = new TermPosting(term, postingFile);
+            //res.dictionary.put(term, new Term(term, documentFrequency, posting));
         }
 
         return res;

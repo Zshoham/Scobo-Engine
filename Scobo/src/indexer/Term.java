@@ -18,6 +18,9 @@ public class Term {
      */
     public TermPosting termPosting;
 
+    //TODO: do this instead of term posting
+    public int pointer;
+
     public Term(String term, int termDocumentFrequency, TermPosting posting) {
         this.term = term;
         this.termDocumentFrequency = termDocumentFrequency;

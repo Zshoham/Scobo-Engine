@@ -2,7 +2,6 @@ package indexer;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 class TermPosting {
 
@@ -11,31 +10,10 @@ class TermPosting {
     // maps documents ids to document frequency.
     private Map<Integer, Integer> documents;
 
-    private PostingFile postingFile;
-    private int postingFileId;
-
-    public TermPosting(String term, int postingFile) {
-        this.term = term;
-        this.documents = new HashMap<>();
-        this.postingFileId = postingFile;
-        this.postingFile = PostingCache.getPostingFileByID(postingFile).orElse(null);
-    }
-
     public TermPosting(String term) {
         this.term = term;
         this.documents = new HashMap<>();
-        this.postingFile = null;
-        postingFileId = -1;
     }
-
-    public int getPostingFileID() {
-        return postingFileId;
-    }
-
-    public PostingFile getPostingFile() {
-        return this.postingFile;
-    }
-
 
     public void addDocument(int documentID, int termFrequency) {
         documents.compute(documentID, (docID, frequency) -> {
@@ -46,30 +24,19 @@ class TermPosting {
         });
     }
 
-    protected synchronized Map<Integer, Integer> getDocuments() {
-        return this.documents;
-    }
-
-    public void setPostingFile(PostingFile postingFile) {
-        this.postingFile = postingFile;
-        this.postingFileId = postingFile.getID();
-    }
-
     public String getTerm() { return this.term; }
 
-    public synchronized String dump() {
+    public String dump() {
         StringBuilder posting = new StringBuilder(this.term);
         for (Map.Entry<Integer, Integer> doc : documents.entrySet()) {
             posting.append("|").append(doc.getKey()).append(",").append(doc.getValue());
         }
+        posting.append("\n");
 
         this.documents = new HashMap<>();
         return posting.toString();
     }
 
-    /*
-    posting format: term(|document id, term frequency)*\n
-     */
     public static TermPosting loadPosting(String postingLine) {
         String[] values = postingLine.split("\\|");
         TermPosting res = new TermPosting(values[0]);

@@ -34,6 +34,7 @@ public class Indexer {
     public void onFinishParser() {
         CPUTasks.closeGroup();
         buffer.flushNow();
+        PostingCache.merge(dictionary);
         dictionary.save();
         IOTasks.closeGroup();
     }
@@ -48,7 +49,7 @@ public class Indexer {
     }
 
     public void queueInvert(LinkedList<Document> documents) {
-        this.IOTasks.add(() -> invert(documents));
+        this.CPUTasks.add(() -> invert(documents));
     }
 
     public void invert(LinkedList<Document> documents) {
@@ -67,7 +68,7 @@ public class Indexer {
         }
 
         newPosting.flush();
-        IOTasks.complete();
+        CPUTasks.complete();
     }
 
     private void invertTerms(int docID, PostingFile newPosting, Document document) {

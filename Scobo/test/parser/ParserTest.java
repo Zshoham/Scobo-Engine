@@ -25,8 +25,8 @@ public class ParserTest {
 
     @Before
     public void setUp() {
-        corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data").getPath();
-        //corpusPath = "C:\\Users\\Hod\\Desktop\\bgu\\Year3\\Sem5\\Information Retrival\\corpus";
+        //corpusPath = new File(getClass().getResource("/").getPath().split("Scobo/")[0] + "data").getPath();
+        corpusPath = "C:\\Users\\Hod\\Desktop\\bgu\\Year3\\Sem5\\Information Retrival\\corpus";
         indexer = new Indexer();
         parser = new Parser(corpusPath, indexer);
         Configuration.getInstance().setUseStemmer(true);
