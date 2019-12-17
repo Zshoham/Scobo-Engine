@@ -78,6 +78,7 @@ public class Indexer {
             int docID = documentMap.addDocument(doc);
 
             invertTerms(docID, newPosting, doc);
+            invertWords(docID, newPosting, doc);
             invertEntities(docID, newPosting, doc);
         }
 
@@ -92,6 +93,19 @@ public class Indexer {
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
 
+            // numbers are added as is to the posting file.
+            newPosting.addTerm(term.getKey(), docID, term.getValue());
+        }
+    }
+
+    private void invertWords(int docID, PostingFile newPosting, Document document) {
+        for (Map.Entry<String, Integer> term : document.terms.entrySet()) {
+            dictionary.addWordFromDocument(term.getKey());
+            Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
+            if (!dictionaryTerm.isPresent())
+                throw new IllegalStateException("term wasn't properly added to dictionary");
+
+            // words are added in lower case to the posting file.
             newPosting.addTerm(term.getKey().toLowerCase(), docID, term.getValue());
         }
     }
@@ -101,6 +115,7 @@ public class Indexer {
             dictionary.addEntityFromDocument(entity.getKey());
             Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
 
+            // entities are added in lower case to the posting file.
             if (dictionaryEntity.isPresent())
                 newPosting.addTerm(entity.getKey().toLowerCase(), docID, entity.getValue());
         }

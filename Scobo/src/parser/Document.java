@@ -6,6 +6,7 @@ public class Document {
 
     public String name;
     public HashMap<String, Integer> terms;
+    public HashMap<String, Integer> words;
     public HashMap<String, Integer> entities;
     public int maxFrequency;
     public int length;
@@ -14,14 +15,20 @@ public class Document {
         this.name = name;
         this.terms = new HashMap<>();
         this.entities = new HashMap<>();
+        this.words = new HashMap<>();
         this.maxFrequency = 1;
         this.length = -1;
     }
 
     public void addTerm(String term) {
-        if (term.length() < 2) return;
         length++;
         terms.compute(term, this::computeAdd);
+    }
+
+    public void addWord(String word) {
+        if (word.length() < 2) return;
+        length++;
+        words.compute(word, this::computeAdd);
     }
 
     public void addEntity(String entity) {

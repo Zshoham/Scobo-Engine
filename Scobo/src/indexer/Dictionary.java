@@ -57,31 +57,41 @@ public final class Dictionary {
         entities = new ConcurrentHashMap<>(termCount / 2, loadFactor, concurrencyLevel);
     }
 
+
+    public void addTermFromDocument(String key) {
+        addTerm(key, 1);
+    }
+
     /**
      * Adds the term to the dictionary, if the term was already contained
      * its statistics will be updated, otherwise the term will be added
      * to the dictionary.
      *
      * @param term a term to add to the dictionary.
-     * @return true if the entity is new to the dictionary, false otherwise.
      */
-    protected boolean addTermFromDocument(String term) {
-        // if upper case and lower case exists
+    protected void addWordFromDocument(String term) {
+        // if lower case equals upper case
         //      add as lower
         //
         // if upper case
-        //      add as upper
+        //      if lower case exists
+        //          add as lower
+        //      else
+        //          add as upper
         //
         // if lower case and upper exists
         //      set upper case to lower case
         //
         // add to document
 
-        //TODO: save numbers like 16B in upper case
-        
         String upperCaseTerm = term.toUpperCase();
         String lowerCaseTerm = term.toLowerCase();
         boolean isUpperCase = Character.isUpperCase(term.charAt(0));
+
+        if (upperCaseTerm.equals(lowerCaseTerm)) {
+            addTerm(lowerCaseTerm, 1);
+            return;
+        }
 
         if (isUpperCase) {
             final AtomicBoolean isPresent = new AtomicBoolean(false);
@@ -91,23 +101,23 @@ public final class Dictionary {
                 return value;
             });
             if (isPresent.get())
-                return false;
+                return;
 
-            return addTerm(upperCaseTerm, 1);
+            addTerm(upperCaseTerm, 1);
+            return;
         }
 
         synchronized (termMonitor) {
             if (dictionary.containsKey(upperCaseTerm)) {
                 Term oldTerm = dictionary.remove(upperCaseTerm);
                 oldTerm.term = lowerCaseTerm;
-                //TODO: change the term in the term posting as well
-                // or else save terms as lowercase in the posting file.
+                oldTerm.termDocumentFrequency++;
                 dictionary.put(lowerCaseTerm, oldTerm);
-                return false;
+                return;
             }
         }
 
-        return addTerm(lowerCaseTerm, 1);
+        addTerm(lowerCaseTerm, 1);
     }
 
     /**
@@ -116,9 +126,8 @@ public final class Dictionary {
      * to the dictionary.
      *
      * @param entity a term to add to the dictionary.
-     * @return true if the entity has been added to the dictionary and is new to the dictionary, false otherwise.
      */
-    protected boolean addEntityFromDocument(String entity) {
+    protected void addEntityFromDocument(String entity) {
         // if entity exists in dictionary
         //      add to dictionary
         //
@@ -134,42 +143,42 @@ public final class Dictionary {
             return value;
         });
         if (isPresent.get())
-            return false;
+            return;
 
         synchronized (entityMonitor) {
             if (entities.containsKey(entity)) {
                 int count = entities.remove(entity);
-                return addTerm(entity, count + 1);
+                addTerm(entity, count + 1);
+                return;
             }
         }
 
         entities.put(entity, 1);
-        return false;
     }
 
-    // helper function to add a term to the dictionary.
+    // helper function to add any term to the dictionary.
     // returns true if the term is new to the dictionary
     // false otherwise.
-    private boolean addTerm(String term, int count) {
-        final AtomicBoolean isPresent = new AtomicBoolean(false);
+    private void addTerm(String term, int count) {
         // compute the terms mapping.
         dictionary.merge(term, new Term(term, count, -1), (dictValue, newValue) -> {
             dictValue.termDocumentFrequency += count;
-            isPresent.set(true);
             return dictValue;
         });
-
-        return !isPresent.get();
     }
 
     /**
      * Retrieves information about a term via a {@link Term} object
      *
      * @param term string representation of the term
-     * @return an optional of a {@link Term}, will be empty if the
-     * term was not yet added to the dictionary or added with a null mapping.
+     * @return  an optional of a {@link Term}, will be empty if the
+     *          term was not yet added to the dictionary or added with a null mapping.
      */
     public Optional<Term> lookupTerm(String term) {
+        Optional<Term> optionalTerm = Optional.ofNullable(dictionary.get(term));
+        if (optionalTerm.isPresent())
+            return optionalTerm;
+
         String lowerCaseTerm = term.toLowerCase();
         String upperCaseTerm = term.toUpperCase();
 
@@ -180,7 +189,7 @@ public final class Dictionary {
         return Optional.ofNullable(dictionary.get(upperCaseTerm));
     }
 
-    public Optional<Term> lookupEntity(String entity) {
+    Optional<Term> lookupEntity(String entity) {
         return Optional.ofNullable(dictionary.get(entity));
     }
 
