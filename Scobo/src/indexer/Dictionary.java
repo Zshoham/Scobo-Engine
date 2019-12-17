@@ -77,6 +77,8 @@ public final class Dictionary {
         //
         // add to document
 
+        //TODO: save numbers like 16B in upper case
+        
         String upperCaseTerm = term.toUpperCase();
         String lowerCaseTerm = term.toLowerCase();
         boolean isUpperCase = Character.isUpperCase(term.charAt(0));
@@ -124,7 +126,7 @@ public final class Dictionary {
         //      remove and add to dictionary
         //
         // add to entities
-        
+
         AtomicBoolean isPresent = new AtomicBoolean(false);
         dictionary.computeIfPresent(entity, (key, value) -> {
             isPresent.set(true);

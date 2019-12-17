@@ -92,7 +92,7 @@ public class Indexer {
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
 
-            newPosting.addTerm(term.getKey(), docID, term.getValue());
+            newPosting.addTerm(term.getKey().toLowerCase(), docID, term.getValue());
         }
     }
 
@@ -102,7 +102,7 @@ public class Indexer {
             Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
 
             if (dictionaryEntity.isPresent())
-                newPosting.addTerm(entity.getKey(), docID, entity.getValue());
+                newPosting.addTerm(entity.getKey().toLowerCase(), docID, entity.getValue());
         }
     }
 }

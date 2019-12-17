@@ -5,6 +5,7 @@ import java.util.Objects;
 
 public class Expression {
     public static HashMap<String, String> monthTable = buildMonthTable();
+    public static HashSet<Character> stoppingChars = buildStoppingCharsTable();
     public static HashSet<String> dollarExpressions = buildDollarExpressions();
     public static HashMap<String, Double> numbersPostfixTable = buildNumbersPostfixTable();
 
@@ -63,8 +64,15 @@ public class Expression {
         int endIndex = nextSpaceIndex;
         if(this.doc.charAt(end) == ' ')
             startIndex++;
-        String expression = this.doc.substring(startIndex, endIndex);
-        return new Expression(startIndex, endIndex, expression, this.doc);
+
+
+        StringBuilder nextExpression = new StringBuilder(this.doc.substring(startIndex, endIndex));
+        while (nextExpression.length() != 0 && stoppingChars.contains(nextExpression.charAt(nextExpression.length() - 1))){
+            endIndex--;
+            nextExpression.deleteCharAt(nextExpression.length() - 1);
+        }
+
+        return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
     public Expression getPrevExpression(){
         int start = this.startIndex;
@@ -116,6 +124,17 @@ public class Expression {
     }
 
 
+    private static HashSet<String> buildDollarExpressions() {
+        HashSet<String> dollarExpressions = new HashSet<>();
+        dollarExpressions.add("$");
+        dollarExpressions.add("Dollars");
+        dollarExpressions.add("dollars");
+        dollarExpressions.add("U.S. Dollars");
+        dollarExpressions.add("U.S. dollars");
+        dollarExpressions.add("u.s. Dollars");
+        dollarExpressions.add("u.s. dollars");
+        return dollarExpressions;
+    }
     private static HashMap<String, String> buildMonthTable() {
         HashMap<String, String> res = new HashMap<>();
 
@@ -175,6 +194,26 @@ public class Expression {
 
         return res;
     }
+    private static HashSet<Character> buildStoppingCharsTable() {
+        HashSet<Character> stoppingCharsTable = new HashSet<>();
+
+        stoppingCharsTable.add('.');
+        stoppingCharsTable.add(',');
+        stoppingCharsTable.add('!');
+        stoppingCharsTable.add(':');
+        stoppingCharsTable.add('"');
+        stoppingCharsTable.add('-');
+        stoppingCharsTable.add('|');
+        stoppingCharsTable.add(']');
+        stoppingCharsTable.add('?');
+        stoppingCharsTable.add(';');
+        stoppingCharsTable.add('\\');
+        stoppingCharsTable.add('/');
+        stoppingCharsTable.add('.');
+        stoppingCharsTable.add('>');
+
+        return stoppingCharsTable;
+    }
     private static HashMap<String, Double> buildNumbersPostfixTable(){
         HashMap<String, Double> table = new HashMap<>();
 
@@ -205,17 +244,6 @@ public class Expression {
         table.put("T", 1000000000000.0);
         table.put("t", 1000000000000.0);
         return table;
-    }
-    private static HashSet<String> buildDollarExpressions() {
-        HashSet<String> dollarExpressions = new HashSet<>();
-        dollarExpressions.add("$");
-        dollarExpressions.add("Dollars");
-        dollarExpressions.add("dollars");
-        dollarExpressions.add("U.S. Dollars");
-        dollarExpressions.add("U.S. dollars");
-        dollarExpressions.add("u.s. Dollars");
-        dollarExpressions.add("u.s. dollars");
-        return dollarExpressions;
     }
 
 }

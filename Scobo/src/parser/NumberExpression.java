@@ -29,15 +29,7 @@ public class NumberExpression extends Expression {
         int slashIndex = nextExpression.indexOf("/");
         if(slashIndex == 0){
             int endSubStr = nextExpression.length();
-            if(nextExpression.charAt(nextExpression.length() - 1) == '.' || //TODO: change!
-                    nextExpression.charAt(nextExpression.length() - 1) == ',' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == '!' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == ':' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == '\"' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == '-' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == '%' ||
-                    nextExpression.charAt(nextExpression.length() - 1) == '$')
-                endSubStr--;
+
             String potentialDenominatorStr = nextExpression.substring(1, endSubStr);
             if(isNumberExpression(potentialDenominatorStr))
                 return true;
@@ -140,15 +132,7 @@ public class NumberExpression extends Expression {
         Expression potentialDenominator = numerator.getNextExpression();
 
         int endSubStr = potentialDenominator.getExpression().length();
-        if(potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '.' || //TODO: change!
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == ',' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '!' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == ':' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '\"' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '-' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '%' ||
-                potentialDenominator.getExpression().charAt(potentialDenominator.getExpression().length() - 1) == '$')
-            endSubStr--;
+
         String potentialDenominatorStr = potentialDenominator.getExpression().substring(0, endSubStr);
         fullExp.append(fullNumber).append(" ").append(numerator.getExpression()).
                 append(potentialDenominatorStr);

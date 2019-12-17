@@ -58,10 +58,8 @@ class Parse implements Runnable {
             parseHyphenSeparatedExp(new Expression(m.start(), m.end(), m.group(0), text));
 
         m = wordPattern.matcher(text);
-        while (m.find()) {
-            if (m.group().length() == 1) continue;
+        while (m.find())
             parseWords(new Expression(m.start(), m.end(), m.group(0), text), m);
-        }
     }
 
     // start is the first digit of the number, end is the last digit of the number
@@ -201,20 +199,21 @@ class Parse implements Runnable {
         if (Character.isUpperCase(word.getExpression().charAt(0))) {
             boolean isEntity = false;
             int countEntity = 1;
-            while (next.getExpression().length() > 1 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
+            while (next.getExpression().length() > 0 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
                 isEntity = true;
                 handleSingleCapital(next);
                 if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
                         word.getExpression().charAt(word.getExpression().length() - 1) == ',')
                     break;
                 word.join(next);
-                next = word.getNextExpression();
                 m.find();
+                //next = word.getNextExpression();
+                next = new Expression(m.start(), m.end(), m.group(), word.getDoc());
                 countEntity++;
             }
-            if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
-                    word.getExpression().charAt(word.getExpression().length() - 1) == ',')
-                word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1), this.document);
+//            if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
+//                    word.getExpression().charAt(word.getExpression().length() - 1) == ',')
+//                word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1), this.document);
             if (isEntity)
                 documentData.addEntity(word.getExpression());
             return true;
