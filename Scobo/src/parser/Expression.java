@@ -105,8 +105,8 @@ public class Expression {
         while ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex)) ||
                 this.doc.charAt(nextSpaceIndex) == '-') && nextSpaceIndex != this.doc.length() -1)
             nextSpaceIndex++;
-        if ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex)) ||
-                this.doc.charAt(nextSpaceIndex) == '-') && nextSpaceIndex == this.doc.length() -1)
+        if ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex))) &&
+                nextSpaceIndex == this.doc.length() -1)
             nextSpaceIndex++;
 
         int startIndex = end;

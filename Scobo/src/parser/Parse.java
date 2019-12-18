@@ -79,12 +79,9 @@ class Parse implements Runnable {
         else if (tryPlainNumeric(numberExp)) return;
     }
     private void parseHyphenSeparatedExp(Expression exp) {
-        if (exp.getExpression().equalsIgnoreCase("1b"))
-            System.out.println("dang-");
         documentData.addWord(exp.getExpression());
     }
     private void parseWords(Expression word, Matcher m) {
-        //TODO: if the word is a number with a postfix dont add it.
         if (!(word.isPostfixExpression() || word.isDollarExpression() ||
                 word.isMonthExpression() || word.isPercentExpression() || NumberExpression.isNumberExpression(word))) {
             if (tryCapitalLetters(word, m)) return;
@@ -195,23 +192,24 @@ class Parse implements Runnable {
             boolean isEntity = false;
             int countEntity = 1;
             Expression next = word.getNextWordExpression();
-            while (next.getExpression().length() > 0 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
+            while (word.getDoc().charAt(word.getEndIndex()) == ' ' && next.getExpression().length() > 0 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
                 isEntity = true;
-                handleSingleCapital(next);
-                if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
-                        word.getExpression().charAt(word.getExpression().length() - 1) == ',')
-                    break;
                 word.join(next);
-                if(m.find())
-                    next = new Expression(m.start(), m.end(), m.group(), word.getDoc());
-                else break;
+
+                if (!next.getExpression().contains("-")) {
+                    handleSingleCapital(next);
+                    if(m.find())
+                        next = word.getNextWordExpression();
+                    else break;
+                }
+                else
+                    next = word.getNextWordExpression();
+
                 //next = word.getNextExpression();
 
                 countEntity++;
             }
-//            if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
-//                    word.getExpression().charAt(word.getExpression().length() - 1) == ',')
-//                word = new Expression(word.getStartIndex(), word.getEndIndex() - 1, word.getExpression().substring(0, word.getExpression().length() - 1), this.document);
+
             if (isEntity)
                 documentData.addEntity(word.getExpression());
             return true;
@@ -226,8 +224,6 @@ class Parse implements Runnable {
     }
 
     private void handleSingleCapital(Expression word) {
-        if (word.getExpression().equalsIgnoreCase("10b"))
-            System.out.println("danG");
         if (!parser.isStopWord(word.getExpression().toLowerCase())) {
             String stemWord = parser.stemWord(word.getExpression().toLowerCase());
             if (documentData.terms.containsKey(stemWord))

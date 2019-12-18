@@ -41,10 +41,8 @@ public class Indexer {
         CPUTasks.closeGroup();
         buffer.flush();
         IOTasks.closeGroup();
-        System.out.println("waiting for all tasks to complete");
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
-        System.out.println("merging");
         PostingCache.merge(dictionary);
         dictionary.save();
         documentMap.dumpNow();

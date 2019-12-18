@@ -37,7 +37,7 @@ public class Document {
         if (word.length() < 2)
             return false;
         String potentialPostFix = word.substring(word.length() - 1);
-        String potentialNumber = word.substring(0, word.length() - 2);
+        String potentialNumber = word.substring(0, word.length() - 1);
         return NumberExpression.isNumberExpression(potentialNumber) &&
                 Expression.numbersPostfixTable.containsKey(potentialPostFix);
     }
