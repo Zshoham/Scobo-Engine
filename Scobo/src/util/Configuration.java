@@ -144,4 +144,25 @@ public class Configuration {
     public int getParserBatchSize() { return parserBatchSize; }
     public String getLogPath() { return logPath; }
     public boolean getUseStemmer() { return useStemmer; }
+
+    public String getDictionaryPath() {
+        return indexPath + "/"  + getUseStemmerPath() + "/dictionary.txt";
+    }
+
+    public String getDocumentMapPath() {
+        return indexPath + "/"  + getUseStemmerPath() + "/document_map.txt";
+    }
+
+    public String getPostingFilePath() {
+        return indexPath + "/"  + getUseStemmerPath() + "/postings/";
+    }
+
+    public String getInvertedFilePath() {
+        return indexPath + "/"  + getUseStemmerPath() + "/inverted_file.txt";
+    }
+
+    private String getUseStemmerPath() {
+        if (useStemmer) return "with_stemming";
+        else return "without_stemming";
+    }
 }

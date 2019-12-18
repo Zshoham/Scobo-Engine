@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class DocumentMap {
 
-    private static final String PATH = Configuration.getInstance().getIndexPath() + "/docmap.txt";
+    private static final String PATH = Configuration.getInstance().getDocumentMapPath();
 
     // provides synchronization for writing to the document map file
     private static final Object fileMonitor = new Object();
@@ -133,10 +133,17 @@ public final class DocumentMap {
         return Optional.ofNullable(documents.get(docID));
     }
 
-    public void dumpNow() {
+    /**
+     * dumps the document map into the document map file.
+     */
+    void dumpNow() {
         dump(indexer, documents, fileWriter);
         this.documents = new ConcurrentHashMap<>();
         size.set(0);
+        try { this.fileWriter.close(); }
+        catch (IOException e) {
+            Logger.getInstance().warn(e);
+        }
     }
 
     /**
@@ -182,11 +189,15 @@ public final class DocumentMap {
     // documentation.
     private static void dump(Indexer indexer, Map<Integer, DocumentMapping> documents, BufferedWriter writer) {
         try {
+            StringBuilder fileDump = new StringBuilder();
             for (Map.Entry<Integer, DocumentMapping> entry : documents.entrySet())
-                writer.append(String.valueOf(entry.getKey())).append("|")
+                fileDump.append(entry.getKey()).append("|")
                         .append(entry.getValue().toString()).append("\n");
 
-            synchronized (fileMonitor) { writer.flush(); }
+            synchronized (fileMonitor) {
+                writer.append(fileDump);
+                writer.flush();
+            }
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }

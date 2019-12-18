@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class PostingCache {
 
-    private static final String postingPath = Configuration.getInstance().getIndexPath() + "/postings/";
-    private static final String invertedFilePath = Configuration.getInstance().getIndexPath() + "/InvertedFile.txt";
+    private static final String postingPath = Configuration.getInstance().getPostingFilePath();
+    private static final String invertedFilePath = Configuration.getInstance().getInvertedFilePath();
 
     private static Cache cache;
     private static volatile AtomicInteger runningID;

@@ -91,7 +91,7 @@ public class Indexer {
 
     private void invertTerms(int docID, PostingFile newPosting, Document document) {
         for (Map.Entry<String, Integer> term : document.terms.entrySet()) {
-            dictionary.addTermFromDocument(term.getKey());
+            dictionary.addTermFromDocument(term.getKey(), term.getValue());
             Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
@@ -103,7 +103,7 @@ public class Indexer {
 
     private void invertWords(int docID, PostingFile newPosting, Document document) {
         for (Map.Entry<String, Integer> term : document.words.entrySet()) {
-            dictionary.addWordFromDocument(term.getKey());
+            dictionary.addWordFromDocument(term.getKey(), term.getValue());
             Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
@@ -115,7 +115,7 @@ public class Indexer {
 
     private void invertEntities(int docID, PostingFile newPosting, Document document) {
         for (Map.Entry<String, Integer> entity : document.entities.entrySet()) {
-            dictionary.addEntityFromDocument(entity.getKey());
+            dictionary.addEntityFromDocument(entity.getKey(), entity.getValue());
             Optional<Term> dictionaryEntity = dictionary.lookupEntity(entity.getKey());
 
             // entities are added in lower case to the posting file.

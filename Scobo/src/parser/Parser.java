@@ -54,7 +54,7 @@ public class Parser {
     //loads the stop words list- all the words to ignore from
     private void loadStopWords(String path) {
         try {
-            Stream<String> lines = Files.lines(Paths.get(path + "/stop words.txt"));
+            Stream<String> lines = Files.lines(Paths.get(path + "/stop_words.txt"));
             stopWords = lines.collect(HashSet::new, HashSet::add, HashSet::addAll);
         }
         catch (IOException e) { LOG.error(e); }

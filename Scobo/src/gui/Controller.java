@@ -1,14 +1,17 @@
 package gui;
 
-import com.sun.org.apache.xalan.internal.xsltc.dom.DocumentCache;
-import indexer.Dictionary;
-import indexer.DocumentMap;
-import indexer.Indexer;
-import indexer.PostingCache;
+import indexer.*;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.TextField;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import parser.Parser;
@@ -35,6 +38,8 @@ public class Controller {
     private Dictionary dictionary;
     private DocumentMap documentMap;
 
+    private final ObservableList<DictionaryEntry> viewableDictionary = FXCollections.observableArrayList();
+
     public void setStage(Stage stage) {
         this.stage = stage;
 
@@ -44,6 +49,7 @@ public class Controller {
         indexPath.setText(new File(configuration.getIndexPath()).getAbsolutePath());
         logPath.setText(new File(configuration.getLogPath()).getAbsolutePath());
         useStemmer.selectedProperty().setValue(configuration.getUseStemmer());
+        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> updateOptions());
 
         parserBatchSize.setText(String.valueOf(configuration.getParserBatchSize()));
         parserBatchSize.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -52,6 +58,7 @@ public class Controller {
         });
 
         directoryChooser = new DirectoryChooser();
+
     }
 
     private void updateOptions() {
@@ -117,13 +124,17 @@ public class Controller {
     @FXML
     public void onClickReset() {
         try {
-            dictionary.clear();
-            documentMap.clear();
+            if (dictionary != null) dictionary.clear();
+            if (documentMap != null) documentMap.clear();
             PostingCache.deleteInvertedFile();
+            viewableDictionary.clear();
         } catch (IOException e) {
             showAlert("ERROR", "error deleting the dictionary files");
+            return;
         }
-        System.gc();
+        finally {
+            System.gc();
+        }
 
         showAlert("SUCCESS", "memory and disk have been successfully cleared");
     }
@@ -135,6 +146,7 @@ public class Controller {
             this.documentMap = DocumentMap.loadDocumentMap();
         } catch (IOException e) {
             showAlert("ERROR", "could not load dictionaries");
+            return;
         }
 
         showAlert("SUCCESS", "dictionary successfully loaded");
@@ -142,7 +154,43 @@ public class Controller {
 
     @FXML
     public void onClickShowDict() {
+        if (dictionary == null || documentMap == null) {
+            showAlert("ERROR", "the dictionary is not loaded");
+            return;
+        }
+        
+        if (viewableDictionary.isEmpty())
+            makeViewable();
 
+        TableView<DictionaryEntry> dictionaryTable = new TableView<>();
+
+        TableColumn termColumn = new TableColumn("term");
+        termColumn.setMinWidth(100);
+        termColumn.setCellValueFactory(new PropertyValueFactory("term"));
+
+        TableColumn frequencyColumn = new TableColumn("frequency");
+        frequencyColumn.setMinWidth(100);
+        frequencyColumn.setCellValueFactory(new PropertyValueFactory("frequency"));
+
+        dictionaryTable.getColumns().addAll(termColumn, frequencyColumn);
+        dictionaryTable.setItems(viewableDictionary);
+
+        Stage dictionaryStage = new Stage();
+        StackPane root = new StackPane();
+        root.setPadding(new Insets(10));
+        root.setAlignment(Pos.CENTER);
+
+        root.getChildren().addAll(dictionaryTable);
+        Scene scene = new Scene(root, 400, 800);
+        dictionaryStage.setScene(scene);
+        dictionaryStage.show();
+    }
+
+    private void makeViewable() {
+        for (Term term : dictionary.getTerms())
+            viewableDictionary.add(new DictionaryEntry(term.term, term.termFrequency));
+
+        viewableDictionary.sort(DictionaryEntry.comparator);
     }
 
 

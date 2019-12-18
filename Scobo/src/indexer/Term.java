@@ -13,12 +13,18 @@ public class Term {
     public int termDocumentFrequency;
 
     /**
+     * number of times the term occurred in the corpus.
+     */
+    public int termFrequency;
+
+    /**
      * pointer to the terms line in the inverted file.
      */
     public int pointer;
 
-    public Term(String term, int termDocumentFrequency, int pointer) {
+    public Term(String term,int termFrequency, int termDocumentFrequency, int pointer) {
         this.term = term;
+        this.termFrequency = termFrequency;
         this.termDocumentFrequency = termDocumentFrequency;
         this.pointer = pointer;
     }
