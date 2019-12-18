@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 /**
@@ -22,9 +23,11 @@ public class Parser {
     private String corpusPath;
     private HashSet<String> stopWords;
 
-    protected TaskGroup IOTasks;
-    protected TaskGroup CPUTasks;
-    protected Logger LOG = Logger.getInstance();
+    TaskGroup IOTasks;
+    TaskGroup CPUTasks;
+    Logger LOG = Logger.getInstance();
+
+    private volatile AtomicInteger documentCount;
 
     private Indexer indexer;
 
@@ -43,6 +46,7 @@ public class Parser {
         CPUTasks = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
         this.corpusPath = path + "/corpus";
         this.indexer = indexer;
+        this.documentCount = new AtomicInteger(0);
 
         loadStopWords(path);
     }
@@ -61,7 +65,7 @@ public class Parser {
      * @param word The word to check if is a stop word
      * @return true if word is stop word, false otherwise
      */
-    protected boolean isStopWord(String word) {
+    boolean isStopWord(String word) {
         return stopWords.contains(word);
     }
 
@@ -71,7 +75,7 @@ public class Parser {
      * @param word the word to stem
      * @return stemmed word or the same word
      */
-    protected String stemWord(String word) {
+    String stemWord(String word) {
         if(!Configuration.getInstance().getUseStemmer())
             return word;
         Stemmer stemmer = new Stemmer();
@@ -85,7 +89,8 @@ public class Parser {
      * notify the parser that document parse is finished
      * @param document which document is finished parsing
      */
-    protected void onFinishedParse(Document document) {
+    void onFinishedParse(Document document) {
+        this.documentCount.incrementAndGet();
         indexer.index(document);
     }
 
@@ -109,5 +114,9 @@ public class Parser {
         CPUTasks.awaitCompletion();
     }
 
-    protected int getBatchSize() { return Parser.BATCH_SIZE; }
+    public int getDocumentCount() {
+        return this.documentCount.get();
+    }
+
+    int getBatchSize() { return Parser.BATCH_SIZE; }
 }

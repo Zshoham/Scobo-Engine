@@ -213,6 +213,17 @@ public final class Dictionary {
     }
 
     /**
+     * Returns the number of key-value mappings in this map.  If the
+     * map contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
+     * <tt>Integer.MAX_VALUE</tt>.
+     *
+     * @return the number of key-value mappings in this map
+     */
+    public int size() {
+        return this.dictionary.size();
+    }
+
+    /**
      * Saves the {@code Dictionary} to the directory specified by {@link Configuration}
      */
     public void save()  {
@@ -220,7 +231,7 @@ public final class Dictionary {
             BufferedWriter writer = new BufferedWriter(new FileWriter(PATH));
             for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
                 Term term = entry.getValue();
-                writer.append(entry.getKey().toString()).append("|");
+                writer.append(entry.getKey()).append("|");
                 writer.append(String.valueOf(term.termDocumentFrequency)).append("|");
                 writer.append(String.valueOf(term.pointer)).append("\n");
             }
@@ -229,6 +240,18 @@ public final class Dictionary {
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
+    }
+
+    /**
+     * Removes all of the entries from the dictionary, and deletes
+     * the dictionary file.
+     *
+     * @throws IOException if there is a problem deleting the file.
+     */
+    public void clear() throws IOException {
+        dictionary.clear();
+        entities.clear();
+        Files.deleteIfExists(Paths.get(PATH));
     }
 
     /**
@@ -261,4 +284,5 @@ public final class Dictionary {
 
         return res;
     }
+
 }

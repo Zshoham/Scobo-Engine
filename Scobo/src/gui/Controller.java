@@ -1,6 +1,10 @@
 package gui;
 
+import com.sun.org.apache.xalan.internal.xsltc.dom.DocumentCache;
+import indexer.Dictionary;
+import indexer.DocumentMap;
 import indexer.Indexer;
+import indexer.PostingCache;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
@@ -11,6 +15,7 @@ import parser.Parser;
 import util.Configuration;
 
 import java.io.File;
+import java.io.IOException;
 
 public class Controller {
 
@@ -25,8 +30,10 @@ public class Controller {
 
     private Configuration configuration;
 
-    private Parser parser;
     private DirectoryChooser directoryChooser;
+
+    private Dictionary dictionary;
+    private DocumentMap documentMap;
 
     public void setStage(Stage stage) {
         this.stage = stage;
@@ -89,30 +96,60 @@ public class Controller {
     @FXML
     public void onClickRun() {
         updateOptions();
-        parser = new Parser(configuration.getCorpusPath(), new Indexer());
-        long t = System.currentTimeMillis();
+        Indexer indexer = new Indexer();
+        Parser parser = new Parser(configuration.getCorpusPath(), indexer);
+        long t0 = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();
-        System.out.println(System.currentTimeMillis() - t);
+        long readTime = System.currentTimeMillis() - t0;
         parser.awaitParse();
-        t = System.currentTimeMillis() - t;
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setHeaderText("parse runtime = " + t);
-        alert.showAndWait();
+        long parseTime = System.currentTimeMillis() - t0;
+        indexer.awaitIndex();
+        long indexTime = System.currentTimeMillis() - t0;
+        String message = "number of documents indexed: " + parser.getDocumentCount() + "\n" +
+                "number of unique terms identified: " + indexer.getTermCount() + "\n" +
+                "time to read the corpus: " + readTime +"\n" +
+                "time to parse all documents: " + parseTime + "\n" +
+                "total indexing time: " + indexTime;
+        showAlert("indexing completed successfully", message);
     }
 
     @FXML
     public void onClickReset() {
+        try {
+            dictionary.clear();
+            documentMap.clear();
+            PostingCache.deleteInvertedFile();
+        } catch (IOException e) {
+            showAlert("ERROR", "error deleting the dictionary files");
+        }
+        System.gc();
 
+        showAlert("SUCCESS", "memory and disk have been successfully cleared");
     }
 
     @FXML
     public void onClickLoadDict() {
+        try {
+            this.dictionary = Dictionary.loadDictionary();
+            this.documentMap = DocumentMap.loadDocumentMap();
+        } catch (IOException e) {
+            showAlert("ERROR", "could not load dictionaries");
+        }
 
+        showAlert("SUCCESS", "dictionary successfully loaded");
     }
 
     @FXML
     public void onClickShowDict() {
 
+    }
+
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setHeaderText(title);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

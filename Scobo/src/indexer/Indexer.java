@@ -25,6 +25,8 @@ public class Indexer {
 
     private CountDownLatch latch;
 
+    private int termCount;
+
     public Indexer() {
         this.CPUTasks = TaskManager.getTaskGroup(TaskType.COMPUTE, TaskPriority.HIGH);
         CPUTasks.openGroup();
@@ -35,6 +37,7 @@ public class Indexer {
         this.documentMap = new DocumentMap(this);
         this.buffer = new DocumentBuffer(this);
         this.latch = new CountDownLatch(1);
+        this.termCount = 0;
     }
 
     public void onFinishParser() {
@@ -44,6 +47,7 @@ public class Indexer {
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
         PostingCache.merge(dictionary);
+        this.termCount = dictionary.size();
         dictionary.save();
         documentMap.dumpNow();
         PostingCache.clean();
@@ -118,5 +122,9 @@ public class Indexer {
             if (dictionaryEntity.isPresent())
                 newPosting.addTerm(entity.getKey().toLowerCase(), docID, entity.getValue());
         }
+    }
+
+    public int getTermCount() {
+        return this.termCount;
     }
 }

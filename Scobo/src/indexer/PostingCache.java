@@ -5,6 +5,8 @@ import util.Configuration;
 import util.Logger;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -141,6 +143,15 @@ public final class PostingCache {
             file.delete();
         }
         postingsDir.delete();
+    }
+
+    /**
+     * Deletes the inverted file.
+     *
+     * @throws IOException if there is a problem deleting the file.
+     */
+    public static void deleteInvertedFile() throws IOException {
+        Files.deleteIfExists(Paths.get(invertedFilePath));
     }
 
 

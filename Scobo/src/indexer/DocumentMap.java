@@ -140,6 +140,17 @@ public final class DocumentMap {
     }
 
     /**
+     * Removes all of the document mappings from the map, and
+     * deletes the document map file.
+     *
+     * @throws IOException if there is a problem deleting the file.
+     */
+    public void clear() throws IOException {
+        documents.clear();
+        Files.deleteIfExists(Paths.get(PATH));
+    }
+
+    /**
      * Loads the document map in LOOKUP mode
      * into memory and returns a reference to it.
      *
@@ -154,7 +165,7 @@ public final class DocumentMap {
         DocumentMap res = new DocumentMap(MODE.LOOKUP, lines.size(), LOAD_FACTOR);
 
         for (String line : lines) {
-            int startOfMapping = line.indexOf("|") + 1;
+            int startOfMapping = line.indexOf("|");
             int docID = Integer.parseInt(line.substring(0, startOfMapping));
             res.documents.put(docID, new DocumentMapping(line.substring(startOfMapping)));
         }
