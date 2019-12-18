@@ -5,6 +5,7 @@ import java.util.Objects;
 
 public class Expression {
     public static HashMap<String, String> monthTable = buildMonthTable();
+    public static HashSet<Character> stoppingChars = buildStoppingCharsTable();
     public static HashSet<String> dollarExpressions = buildDollarExpressions();
     public static HashMap<String, Double> numbersPostfixTable = buildNumbersPostfixTable();
 
@@ -56,15 +57,22 @@ public class Expression {
         int nextSpaceIndex = end + 1;
         while (this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex != this.doc.length() -1)
             nextSpaceIndex++;
-        if(this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == this.doc.length() -1)
+        if (this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == this.doc.length() -1)
             nextSpaceIndex++;
 
         int startIndex = end;
         int endIndex = nextSpaceIndex;
-        if(this.doc.charAt(end) == ' ')
+        if (this.doc.charAt(end) == ' ')
             startIndex++;
-        String expression = this.doc.substring(startIndex, endIndex);
-        return new Expression(startIndex, endIndex, expression, this.doc);
+
+
+        StringBuilder nextExpression = new StringBuilder(this.doc.substring(startIndex, endIndex));
+        while (nextExpression.length() != 0 && stoppingChars.contains(nextExpression.charAt(nextExpression.length() - 1))){
+            endIndex--;
+            nextExpression.deleteCharAt(nextExpression.length() - 1);
+        }
+
+        return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
     public Expression getPrevExpression(){
         int start = this.startIndex;
@@ -78,12 +86,42 @@ public class Expression {
             prevSpaceIndex--;
         int startIndex = prevSpaceIndex;
         int endIndex = start;
-        if(this.doc.charAt(prevSpaceIndex) == ' ')
+        if (this.doc.charAt(prevSpaceIndex) == ' ')
             startIndex += 1;
-        if(this.doc.charAt(start - 1) == ' ')
+        if (this.doc.charAt(start - 1) == ' ')
             endIndex--;
         String expression = this.doc.substring(startIndex, endIndex);
         return new Expression(startIndex, endIndex, expression, this.doc);
+    }
+
+    public Expression getNextWordExpression(){
+        int start = this.startIndex;
+        int end = this.endIndex;
+
+        if(start == this.doc.length() || end  > this.doc.length() - 2)
+            return new Expression();
+
+        int nextSpaceIndex = end + 1;
+        while ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex)) ||
+                this.doc.charAt(nextSpaceIndex) == '-') && nextSpaceIndex != this.doc.length() -1)
+            nextSpaceIndex++;
+        if ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex))) &&
+                nextSpaceIndex == this.doc.length() -1)
+            nextSpaceIndex++;
+
+        int startIndex = end;
+        int endIndex = nextSpaceIndex;
+        if (this.doc.charAt(end) == ' ')
+            startIndex++;
+
+
+        StringBuilder nextExpression = new StringBuilder(this.doc.substring(startIndex, endIndex));
+        while (nextExpression.length() != 0 && stoppingChars.contains(nextExpression.charAt(nextExpression.length() - 1))){
+            endIndex--;
+            nextExpression.deleteCharAt(nextExpression.length() - 1);
+        }
+
+        return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
 
     public void join(Expression exp) {
@@ -116,6 +154,17 @@ public class Expression {
     }
 
 
+    private static HashSet<String> buildDollarExpressions() {
+        HashSet<String> dollarExpressions = new HashSet<>();
+        dollarExpressions.add("$");
+        dollarExpressions.add("Dollars");
+        dollarExpressions.add("dollars");
+        dollarExpressions.add("U.S. Dollars");
+        dollarExpressions.add("U.S. dollars");
+        dollarExpressions.add("u.s. Dollars");
+        dollarExpressions.add("u.s. dollars");
+        return dollarExpressions;
+    }
     private static HashMap<String, String> buildMonthTable() {
         HashMap<String, String> res = new HashMap<>();
 
@@ -175,6 +224,28 @@ public class Expression {
 
         return res;
     }
+    private static HashSet<Character> buildStoppingCharsTable() {
+        HashSet<Character> stoppingCharsTable = new HashSet<>();
+
+        stoppingCharsTable.add('.');
+        stoppingCharsTable.add(',');
+        stoppingCharsTable.add('!');
+        stoppingCharsTable.add(':');
+        stoppingCharsTable.add('"');
+        stoppingCharsTable.add('-');
+        stoppingCharsTable.add('|');
+        stoppingCharsTable.add(']');
+        stoppingCharsTable.add('?');
+        stoppingCharsTable.add(';');
+        stoppingCharsTable.add('\\');
+        stoppingCharsTable.add('/');
+        stoppingCharsTable.add('>');
+        stoppingCharsTable.add('<');
+        stoppingCharsTable.add('[');
+        stoppingCharsTable.add(']');
+
+        return stoppingCharsTable;
+    }
     private static HashMap<String, Double> buildNumbersPostfixTable(){
         HashMap<String, Double> table = new HashMap<>();
 
@@ -205,17 +276,6 @@ public class Expression {
         table.put("T", 1000000000000.0);
         table.put("t", 1000000000000.0);
         return table;
-    }
-    private static HashSet<String> buildDollarExpressions() {
-        HashSet<String> dollarExpressions = new HashSet<>();
-        dollarExpressions.add("$");
-        dollarExpressions.add("Dollars");
-        dollarExpressions.add("dollars");
-        dollarExpressions.add("U.S. Dollars");
-        dollarExpressions.add("U.S. dollars");
-        dollarExpressions.add("u.s. Dollars");
-        dollarExpressions.add("u.s. dollars");
-        return dollarExpressions;
     }
 
 }

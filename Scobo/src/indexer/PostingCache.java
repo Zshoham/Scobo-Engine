@@ -1,123 +1,165 @@
 package indexer;
 
+
 import util.Configuration;
 import util.Logger;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class PostingCache {
 
-    private static final int FIRST_FLUSH_THRESHOLD = 50000;
+    private static final String postingPath = Configuration.getInstance().getPostingFilePath();
+    private static final String invertedFilePath = Configuration.getInstance().getInvertedFilePath();
 
     private static Cache cache;
     private static volatile AtomicInteger runningID;
-    private static PostingFile newPostingFile = null;
 
     static void initCache(Indexer indexer) {
+        File postingDir = new File(postingPath);
+
+        if (!postingDir.exists())
+            postingDir.mkdirs();
+
         runningID = new AtomicInteger(0);
         cache = new Cache(indexer);
     }
 
-    synchronized static Optional<PostingFile> getPostingFileByID(int postingFile) {
+    static Optional<PostingFile> newPostingFile() {
         if (cache == null) {
             Logger.getInstance().warn("trying to use PostingCache when not initialized");
             return Optional.empty();
         }
-
-        return Optional.ofNullable(cache.postingFiles.get(postingFile));
-    }
-
-    synchronized static Optional<PostingFile> newPostingFile() {
-        if (cache == null) {
-            Logger.getInstance().warn("trying to use PostingCache when not initialized");
-            return Optional.empty();
-        }
-        if (newPostingFile != null)
-            return Optional.of(newPostingFile);
 
         PostingFile res = new PostingFile(runningID.getAndIncrement());
-        cache.postingFiles.put(res.getID(), res);
         return Optional.of(res);
     }
 
-    synchronized static void handleFirstFlush(PostingFile postingFile) {
-        if (newPostingFile != null && newPostingFile != postingFile)
-            throw new IllegalStateException("using a new posting file before flushing the previous");
+    static void queuePostingFlush(PostingFile postingFile) {
+        final int postingFileID = postingFile.getID();
+        final TermPosting[] postings = postingFile.getPostings();
+        cache.indexer.IOTasks.add(() -> flushPosting(postingFileID, postings));
+    }
 
-        if (postingFile.getPostingCount() >= FIRST_FLUSH_THRESHOLD) {
-            postingFile.flush();
-            newPostingFile = null;
+    static void flushPosting(int postingFileId, TermPosting[] postings) {
+        try {
+            String path = getPostingFilePath(postingFileId);
+            BufferedWriter writer = new BufferedWriter(new FileWriter(path));
+
+            for (TermPosting termPosting : postings)
+                writer.append(termPosting.dump());
+
+            writer.close();
+
+        } catch (IOException e) {
+            Logger.getInstance().error(e);
+        }
+        finally {
+            cache.indexer.IOTasks.complete();
         }
     }
 
-    synchronized static void queuePostingFileUpdate(int postingFileID, Map<String, TermPosting> postings) {
-        cache.indexer.IOTasks.add(() -> updatePostingFile(postingFileID, postings));
+    static String getPostingFilePath(int postingFileID) {
+        return postingPath + postingFileID + ".txt";
     }
 
-    private static void updatePostingFile(int postingFileID, Map<String, TermPosting> postings) {
+    public static void merge(Dictionary dictionary) {
         try {
-            String path = getPostingFilePath(postingFileID);
-            //TODO: change to a RandomAccessFile
-            BufferedWriter writer = new BufferedWriter(new FileWriter(path));
-            List<String> postingFile = Files.readAllLines(Paths.get(path));
+            int postingFileCount = runningID.get();
+            BufferedWriter invertedFileWriter = new BufferedWriter(new FileWriter(invertedFilePath));
+            BufferedReader[] postingReaders = new BufferedReader[postingFileCount];
+            boolean isFirstRead = true;
 
-            // for all the existing postings in the file
-            // update their values with the cached postings.
-            for (String posting : postingFile) {
-                TermPosting loaded = TermPosting.loadPosting(posting);
+            int lineNumber = 0;
+            // find min term of all files.
+            ArrayList<String> lines = new ArrayList<>();
+            LinkedList<Integer> minLines = new LinkedList<>();
 
-                if (posting.contains(loaded.getTerm())) {
-                    // get the corresponding posting from the cached posting file.
-                    TermPosting cachedPosting = postings.get(loaded.getTerm());
-                    // added the new posting data to the loaded posting.
-                    loaded.addAll(cachedPosting.getDocuments());
-                    // remove the posting from the cached posting in order to
-                    // not iterate over it again.
-                    postings.remove(loaded.getTerm());
+            int countNull = 0;
+            while (countNull < postingFileCount) {
+                String minTerm = null;
+                countNull = 0;
+                for (int i = 0; i < postingFileCount; i++) {
+                    if (isFirstRead) {
+                        postingReaders[i] = new BufferedReader(new FileReader(getPostingFilePath(i)));
+                        lines.add(i, postingReaders[i].readLine());
+                    }
+
+                    String line = lines.get(i);
+                    if (line != null) {
+                        String term = line.substring(0, line.indexOf("|"));
+                        if (minTerm == null) {
+                            minTerm = term;
+                            minLines.addLast(i);
+                        } else if (term.compareTo(minTerm) < 0) {
+                            minTerm = term;
+                            minLines.clear();
+                            minLines.addLast(i);
+                        } else if (term.compareTo(minTerm) == 0)
+                            minLines.addLast(i);
+                    }
+                    else countNull++;
                 }
+                if (countNull >= postingFileCount)
+                    break;
 
-                writer.append(loaded.dump()).append("\n");
-                //TODO: see if the flush is necessary
-                writer.flush();
+                isFirstRead = false;
+                int firstMinLine = minLines.removeFirst();
+                StringBuilder docsStr = new StringBuilder(lines.get(firstMinLine));
+                for (int line : minLines) {
+                    String lineStr = lines.get(line);
+                    docsStr.append(lineStr.substring(lineStr.indexOf("|")));
+                    lines.set(line, postingReaders[line].readLine());
+                }
+                lines.set(firstMinLine, postingReaders[firstMinLine].readLine());
+                docsStr.append("\n");
+                invertedFileWriter.write(docsStr.toString());
+
+                // update dictionary pointer.
+                Optional<Term> optionalTerm = dictionary.lookupTerm(minTerm);
+                if (!optionalTerm.isPresent())
+                    throw new IllegalStateException("term does not exist in dictionary");
+
+                optionalTerm.get().pointer = lineNumber;
+
+                minLines.clear();
+                lineNumber++;
             }
-
-            // now for all the postings that are cached but do not exists in the file
-            // we will add new lines to the file with those postings.
-            for (TermPosting termPosting : postings.values()) {
-                writer.append(termPosting.toString());
-            }
-
-            writer.flush();
+            invertedFileWriter.close();
+            for (int i = 0; i < postingReaders.length; i++)
+                postingReaders[i].close();
 
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
     }
 
-    private static String getPostingFilePath(int postingFileID) {
-        String basePath = Configuration.getInstance().getIndexPath() + "postings/";
-        return basePath + postingFileID;
+    public static void clean() {
+        File postingsDir = new File(postingPath);
+        for (File file : postingsDir.listFiles()) {
+            file.delete();
+        }
+        postingsDir.delete();
     }
+
+    /**
+     * Deletes the inverted file.
+     *
+     * @throws IOException if there is a problem deleting the file.
+     */
+    public static void deleteInvertedFile() throws IOException {
+        Files.deleteIfExists(Paths.get(invertedFilePath));
+    }
+
 
     private static class Cache {
 
-        private static final int CACHE_SIZE = 10;
-
-        public ConcurrentHashMap<Integer, PostingFile> postingFiles;
-        public ConcurrentHashMap<Integer, PostingFile> postingCache;
         public Indexer indexer;
 
         public Cache(Indexer indexer) {
-            this.postingFiles = new ConcurrentHashMap<>();
-            this.postingCache = new ConcurrentHashMap<>(CACHE_SIZE);
-
             this.indexer = indexer;
         }
     }

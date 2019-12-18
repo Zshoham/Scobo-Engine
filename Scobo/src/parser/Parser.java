@@ -1,5 +1,6 @@
 package parser;
 
+import indexer.Indexer;
 import util.Configuration;
 import util.Logger;
 import util.TaskGroup;
@@ -9,70 +10,99 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+/**
+ * Manages documents parsing.
+ */
 public class Parser {
 
     private static final int BATCH_SIZE = Configuration.getInstance().getParserBatchSize();
 
     private String corpusPath;
     private HashSet<String> stopWords;
-    private Stemmer stemmer;
 
-    protected TaskGroup IOTasks;
-    protected TaskGroup CPUTasks;
-    protected Logger LOG = Logger.getInstance();
+    TaskGroup IOTasks;
+    TaskGroup CPUTasks;
+    Logger LOG = Logger.getInstance();
 
-    private Queue<Map<String, Integer>> capitalLetterWords;
-    private Queue<Map<String, Integer>> entities;
+    private volatile AtomicInteger documentCount;
 
+    private Indexer indexer;
 
-    public Parser(String path) {
+    /**
+     * Constructor for the parser object
+     * <p>
+     *     initialise the task groups
+     *     give values to the parser elements
+     *     loads the stop words list
+     * </p>
+     * @param path string path to the corpus directory
+     * @param indexer pointer to the main indexer of the engine
+     */
+    public Parser(String path, Indexer indexer) {
         IOTasks = TaskManager.getTaskGroup(TaskManager.TaskType.IO);
         CPUTasks = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
         this.corpusPath = path + "/corpus";
-        this.stemmer = new Stemmer();
+        this.indexer = indexer;
+        this.documentCount = new AtomicInteger(0);
+
         loadStopWords(path);
-        capitalLetterWords = new ConcurrentLinkedQueue<>();
-        entities = new ConcurrentLinkedQueue<>();
     }
 
+    //loads the stop words list- all the words to ignore from
     private void loadStopWords(String path) {
         try {
-            Stream<String> lines = Files.lines(Paths.get(path + "/stop words.txt"));
+            Stream<String> lines = Files.lines(Paths.get(path + "/stop_words.txt"));
             stopWords = lines.collect(HashSet::new, HashSet::add, HashSet::addAll);
         }
         catch (IOException e) { LOG.error(e); }
     }
 
-    protected synchronized boolean isStopWord(String word) {
+    /**
+     * check if given word is stop word
+     * @param word The word to check if is a stop word
+     * @return true if word is stop word, false otherwise
+     */
+    boolean isStopWord(String word) {
         return stopWords.contains(word);
     }
 
-    protected String stemWord(String word) {
+    /**
+     * If configured to stem- stem a given word
+     * otherwise, return the same word
+     * @param word the word to stem
+     * @return stemmed word or the same word
+     */
+    String stemWord(String word) {
         if(!Configuration.getInstance().getUseStemmer())
             return word;
-        //stemmer.add(word.toCharArray(), word.length());
+        Stemmer stemmer = new Stemmer();
         for (int i = 0; i < word.length(); i++)
             stemmer.add(word.charAt(i));
         stemmer.stem();
         return stemmer.toString();
     }
 
+    /**
+     * notify the parser that document parse is finished
+     * @param document which document is finished parsing
+     */
+    void onFinishedParse(Document document) {
+        this.documentCount.incrementAndGet();
+        indexer.index(document);
+    }
+
     public void start() {
         new ReadFile(corpusPath, this);
 
-        new Thread(() -> finish(), "parse waiter").start();
+        new Thread(this::finish, "parse waiter").start();
     }
 
-    public void finish() {
+    private void finish() {
         this.awaitParse();
-        handleCapitals();
-    }
-
-    public void handleCapitals() {
-        //TODO: handle capitals here.
+        indexer.onFinishParser();
     }
 
     public void awaitRead() {
@@ -84,9 +114,9 @@ public class Parser {
         CPUTasks.awaitCompletion();
     }
 
+    public int getDocumentCount() {
+        return this.documentCount.get();
+    }
 
-    protected int getBatchSize() { return Parser.BATCH_SIZE; }
-    protected HashSet<String> getStopWords() { return stopWords; }
-
-
+    int getBatchSize() { return Parser.BATCH_SIZE; }
 }

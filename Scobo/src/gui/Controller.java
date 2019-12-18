@@ -1,15 +1,24 @@
 package gui;
 
+import indexer.*;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.TextField;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import parser.Parser;
 import util.Configuration;
 
 import java.io.File;
+import java.io.IOException;
 
 public class Controller {
 
@@ -24,8 +33,12 @@ public class Controller {
 
     private Configuration configuration;
 
-    private Parser parser;
     private DirectoryChooser directoryChooser;
+
+    private Dictionary dictionary;
+    private DocumentMap documentMap;
+
+    private final ObservableList<DictionaryEntry> viewableDictionary = FXCollections.observableArrayList();
 
     public void setStage(Stage stage) {
         this.stage = stage;
@@ -36,6 +49,7 @@ public class Controller {
         indexPath.setText(new File(configuration.getIndexPath()).getAbsolutePath());
         logPath.setText(new File(configuration.getLogPath()).getAbsolutePath());
         useStemmer.selectedProperty().setValue(configuration.getUseStemmer());
+        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> updateOptions());
 
         parserBatchSize.setText(String.valueOf(configuration.getParserBatchSize()));
         parserBatchSize.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -44,6 +58,7 @@ public class Controller {
         });
 
         directoryChooser = new DirectoryChooser();
+
     }
 
     private void updateOptions() {
@@ -88,30 +103,101 @@ public class Controller {
     @FXML
     public void onClickRun() {
         updateOptions();
-        parser = new Parser(configuration.getCorpusPath());
-        long t = System.currentTimeMillis();
+        Indexer indexer = new Indexer();
+        Parser parser = new Parser(configuration.getCorpusPath(), indexer);
+        long t0 = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();
-        System.out.println(System.currentTimeMillis() - t);
+        long readTime = System.currentTimeMillis() - t0;
         parser.awaitParse();
-        t = System.currentTimeMillis() - t;
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setHeaderText("parse runtime = " + t);
-        alert.showAndWait();
+        long parseTime = System.currentTimeMillis() - t0;
+        indexer.awaitIndex();
+        long indexTime = System.currentTimeMillis() - t0;
+        String message = "number of documents indexed: " + parser.getDocumentCount() + "\n" +
+                "number of unique terms identified: " + indexer.getTermCount() + "\n" +
+                "time to read the corpus: " + readTime +"\n" +
+                "time to parse all documents: " + parseTime + "\n" +
+                "total indexing time: " + indexTime;
+        showAlert("indexing completed successfully", message);
     }
 
     @FXML
     public void onClickReset() {
+        try {
+            if (dictionary != null) dictionary.clear();
+            if (documentMap != null) documentMap.clear();
+            PostingCache.deleteInvertedFile();
+            viewableDictionary.clear();
+        } catch (IOException e) {
+            showAlert("ERROR", "error deleting the dictionary files");
+            return;
+        }
+        finally {
+            System.gc();
+        }
 
+        showAlert("SUCCESS", "memory and disk have been successfully cleared");
     }
 
     @FXML
     public void onClickLoadDict() {
+        try {
+            this.dictionary = Dictionary.loadDictionary();
+            this.documentMap = DocumentMap.loadDocumentMap();
+        } catch (IOException e) {
+            showAlert("ERROR", "could not load dictionaries");
+            return;
+        }
 
+        showAlert("SUCCESS", "dictionary successfully loaded");
     }
 
     @FXML
     public void onClickShowDict() {
+        if (dictionary == null || documentMap == null) {
+            showAlert("ERROR", "the dictionary is not loaded");
+            return;
+        }
+        
+        if (viewableDictionary.isEmpty())
+            makeViewable();
 
+        TableView<DictionaryEntry> dictionaryTable = new TableView<>();
+
+        TableColumn termColumn = new TableColumn("term");
+        termColumn.setMinWidth(100);
+        termColumn.setCellValueFactory(new PropertyValueFactory("term"));
+
+        TableColumn frequencyColumn = new TableColumn("frequency");
+        frequencyColumn.setMinWidth(100);
+        frequencyColumn.setCellValueFactory(new PropertyValueFactory("frequency"));
+
+        dictionaryTable.getColumns().addAll(termColumn, frequencyColumn);
+        dictionaryTable.setItems(viewableDictionary);
+
+        Stage dictionaryStage = new Stage();
+        StackPane root = new StackPane();
+        root.setPadding(new Insets(10));
+        root.setAlignment(Pos.CENTER);
+
+        root.getChildren().addAll(dictionaryTable);
+        Scene scene = new Scene(root, 400, 800);
+        dictionaryStage.setScene(scene);
+        dictionaryStage.show();
+    }
+
+    private void makeViewable() {
+        for (Term term : dictionary.getTerms())
+            viewableDictionary.add(new DictionaryEntry(term.term, term.termFrequency));
+
+        viewableDictionary.sort(DictionaryEntry.comparator);
+    }
+
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setHeaderText(title);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

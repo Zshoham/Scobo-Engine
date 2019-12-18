@@ -13,14 +13,19 @@ public class Term {
     public int termDocumentFrequency;
 
     /**
-     * pointer to the start of the posting file entry
-     * belonging to this term.
+     * number of times the term occurred in the corpus.
      */
-    public TermPosting termPosting;
+    public int termFrequency;
 
-    public Term(String term, int termDocumentFrequency, TermPosting posting) {
+    /**
+     * pointer to the terms line in the inverted file.
+     */
+    public int pointer;
+
+    public Term(String term,int termFrequency, int termDocumentFrequency, int pointer) {
         this.term = term;
+        this.termFrequency = termFrequency;
         this.termDocumentFrequency = termDocumentFrequency;
-        this.termPosting = posting;
+        this.pointer = pointer;
     }
 }

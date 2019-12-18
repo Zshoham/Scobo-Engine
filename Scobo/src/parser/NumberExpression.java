@@ -28,7 +28,9 @@ public class NumberExpression extends Expression {
         if(nextExpression.equals("/")) return false;
         int slashIndex = nextExpression.indexOf("/");
         if(slashIndex == 0){
-            String potentialDenominatorStr = nextExpression.substring(1, nextExpression.length());
+            int endSubStr = nextExpression.length();
+
+            String potentialDenominatorStr = nextExpression.substring(1, endSubStr);
             if(isNumberExpression(potentialDenominatorStr))
                 return true;
         }
@@ -38,8 +40,8 @@ public class NumberExpression extends Expression {
         String prevExpression = this.getPrevExpression().getExpression();
         int slashIndex = prevExpression.indexOf("/");
         if(!prevExpression.equals("") && slashIndex == prevExpression.length() - 1){
-            String potentialDenominatorStr = prevExpression.substring(0, slashIndex);
-            if(isNumberExpression(potentialDenominatorStr))
+            String potentialNumeratorStr = prevExpression.substring(0, slashIndex);
+            if(isNumberExpression(potentialNumeratorStr))
                 return true;
         }
         return false;
@@ -86,7 +88,10 @@ public class NumberExpression extends Expression {
             index++;
             double numerator = Double.parseDouble(strExp.substring(index, strExp.indexOf("/")));
             index = strExp.indexOf("/") + 1;
-            double denominator = Double.parseDouble(strExp.substring(index));
+
+
+            double denominator = new NumberExpression(0,0, strExp.substring(index), exp.getDoc()).getValue();
+
             value += numerator / denominator;
         }
 
@@ -119,12 +124,18 @@ public class NumberExpression extends Expression {
         int fullExpEndIndex = numerator.getNextExpression().getEndIndex();
         StringBuilder fullExp = new StringBuilder();
         String fullNumber = "0";
-        if(NumberExpression.isNumberExpression(numerator.getPrevExpression())){
-            fullExpStartIndex = numerator.getPrevExpression().getStartIndex();
-            fullNumber = numerator.getPrevExpression().getExpression();
+        Expression potentialFullNumber = numerator.getNextExpression();
+        if(NumberExpression.isNumberExpression(potentialFullNumber)){
+            fullExpStartIndex = potentialFullNumber.getStartIndex();
+            fullNumber = potentialFullNumber.getExpression();
         }
+        Expression potentialDenominator = numerator.getNextExpression();
+
+        int endSubStr = potentialDenominator.getExpression().length();
+
+        String potentialDenominatorStr = potentialDenominator.getExpression().substring(0, endSubStr);
         fullExp.append(fullNumber).append(" ").append(numerator.getExpression()).
-                append(numerator.getNextExpression().getExpression());
+                append(potentialDenominatorStr);
         return new NumberExpression(fullExpStartIndex, fullExpEndIndex, fullExp.toString(), numerator.getDoc());
     }
     public static String getNumberString(double number){
