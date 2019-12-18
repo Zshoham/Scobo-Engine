@@ -39,9 +39,12 @@ public class Indexer {
 
     public void onFinishParser() {
         CPUTasks.closeGroup();
-        buffer.flushNow();
+        buffer.flush();
         IOTasks.closeGroup();
+        System.out.println("waiting for all tasks to complete");
+        CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
+        System.out.println("merging");
         PostingCache.merge(dictionary);
         dictionary.save();
         documentMap.dumpNow();
@@ -50,8 +53,6 @@ public class Indexer {
     }
 
     public void awaitIndex() {
-        CPUTasks.awaitCompletion();
-        IOTasks.awaitCompletion();
         try { latch.await(); }
         catch (InterruptedException e) {
             Logger.getInstance().warn(e);
@@ -94,12 +95,12 @@ public class Indexer {
                 throw new IllegalStateException("term wasn't properly added to dictionary");
 
             // numbers are added as is to the posting file.
-            newPosting.addTerm(term.getKey(), docID, term.getValue());
+            newPosting.addTerm(term.getKey().toLowerCase(), docID, term.getValue());
         }
     }
 
     private void invertWords(int docID, PostingFile newPosting, Document document) {
-        for (Map.Entry<String, Integer> term : document.terms.entrySet()) {
+        for (Map.Entry<String, Integer> term : document.words.entrySet()) {
             dictionary.addWordFromDocument(term.getKey());
             Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
             if (!dictionaryTerm.isPresent())

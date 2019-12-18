@@ -40,8 +40,8 @@ public class NumberExpression extends Expression {
         String prevExpression = this.getPrevExpression().getExpression();
         int slashIndex = prevExpression.indexOf("/");
         if(!prevExpression.equals("") && slashIndex == prevExpression.length() - 1){
-            String potentialDenominatorStr = prevExpression.substring(0, slashIndex);
-            if(isNumberExpression(potentialDenominatorStr))
+            String potentialNumeratorStr = prevExpression.substring(0, slashIndex);
+            if(isNumberExpression(potentialNumeratorStr))
                 return true;
         }
         return false;

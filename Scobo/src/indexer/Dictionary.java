@@ -58,18 +58,18 @@ public final class Dictionary {
     }
 
 
-    public void addTermFromDocument(String key) {
-        addTerm(key, 1);
+    public void addTermFromDocument(String term) {
+        addTerm(term, 1);
     }
 
     /**
-     * Adds the term to the dictionary, if the term was already contained
-     * its statistics will be updated, otherwise the term will be added
+     * Adds the word to the dictionary, if the word was already contained
+     * its statistics will be updated, otherwise the word will be added
      * to the dictionary.
      *
-     * @param term a term to add to the dictionary.
+     * @param word a word to add to the dictionary.
      */
-    protected void addWordFromDocument(String term) {
+    protected void addWordFromDocument(String word) {
         // if lower case equals upper case
         //      add as lower
         //
@@ -84,9 +84,12 @@ public final class Dictionary {
         //
         // add to document
 
-        String upperCaseTerm = term.toUpperCase();
-        String lowerCaseTerm = term.toLowerCase();
-        boolean isUpperCase = Character.isUpperCase(term.charAt(0));
+        if (word.equalsIgnoreCase("1b"))
+            System.out.println(word + "from words");
+
+        String upperCaseTerm = word.toUpperCase();
+        String lowerCaseTerm = word.toLowerCase();
+        boolean isUpperCase = Character.isUpperCase(word.charAt(0));
 
         if (upperCaseTerm.equals(lowerCaseTerm)) {
             addTerm(lowerCaseTerm, 1);
@@ -136,6 +139,10 @@ public final class Dictionary {
         //
         // add to entities
 
+
+        if (entity.equalsIgnoreCase("1b"))
+            System.out.println(entity + "from entities");
+
         AtomicBoolean isPresent = new AtomicBoolean(false);
         dictionary.computeIfPresent(entity, (key, value) -> {
             isPresent.set(true);
@@ -175,6 +182,10 @@ public final class Dictionary {
      *          term was not yet added to the dictionary or added with a null mapping.
      */
     public Optional<Term> lookupTerm(String term) {
+        if (term.contains("dollars")) {
+            term = term.replace("dollars", "Dollars");
+            term = term.replace("m", "M");
+        }
         Optional<Term> optionalTerm = Optional.ofNullable(dictionary.get(term));
         if (optionalTerm.isPresent())
             return optionalTerm;
@@ -209,7 +220,7 @@ public final class Dictionary {
             BufferedWriter writer = new BufferedWriter(new FileWriter(PATH));
             for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
                 Term term = entry.getValue();
-                writer.append(entry.getKey()).append("|");
+                writer.append(entry.getKey().toString()).append("|");
                 writer.append(String.valueOf(term.termDocumentFrequency)).append("|");
                 writer.append(String.valueOf(term.pointer)).append("\n");
             }
@@ -244,8 +255,7 @@ public final class Dictionary {
 
             String term = contents[0];
             int documentFrequency = Integer.parseInt(contents[1]);
-            int postingFile = Integer.parseInt(contents[2]);
-            int pointer = Integer.parseInt(contents[3]);
+            int pointer = Integer.parseInt(contents[2]);
             res.dictionary.put(term, new Term(term, documentFrequency, pointer));
         }
 

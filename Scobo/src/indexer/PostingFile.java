@@ -25,10 +25,11 @@ public class PostingFile {
         });
     }
 
-    protected TermPosting[] getPostings(){
+    protected TermPosting[] getPostings() {
         TermPosting[] res = new TermPosting[postingDictionary.size()];
         postingDictionary.values().toArray(res);
-        Arrays.sort(res, Comparator.comparing(TermPosting::getTerm));
+        Arrays.sort(res, (t1, t2) -> t1.getTerm().compareToIgnoreCase(t2.getTerm()));
+        //Arrays.sort(res, Comparator.comparing(TermPosting::getTerm));
         return res;
     }
 

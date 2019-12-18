@@ -78,47 +78,25 @@ class Parse implements Runnable {
         else if (tryBetweenFirst(numberExp)) return;
         else if (tryPlainNumeric(numberExp)) return;
     }
-
     private void parseHyphenSeparatedExp(Expression exp) {
-        documentData.addTerm(exp.getExpression());
+        if (exp.getExpression().equalsIgnoreCase("1b"))
+            System.out.println("dang-");
+        documentData.addWord(exp.getExpression());
     }
-
     private void parseWords(Expression word, Matcher m) {
+        //TODO: if the word is a number with a postfix dont add it.
         if (!(word.isPostfixExpression() || word.isDollarExpression() ||
                 word.isMonthExpression() || word.isPercentExpression() || NumberExpression.isNumberExpression(word))) {
             if (tryCapitalLetters(word, m)) return;
             else if (!parser.isStopWord(word.getExpression())) {
                 String stemWord = parser.stemWord(word.getExpression().toLowerCase());
-                documentData.addTerm(stemWord);
+                documentData.addWord(stemWord);
                 if (documentData.terms.containsKey(stemWord.toUpperCase()))
                     moveUpperToLower(stemWord.toUpperCase());
-
             }
         }
     }
 
-    private void moveUpperToLower(String upperCaseWord) {
-        documentData.terms.computeIfPresent(upperCaseWord.toLowerCase(), (s, integer) -> integer + documentData.terms.get(upperCaseWord));
-        documentData.terms.remove(upperCaseWord);
-    }
-
-    private boolean tryPlainNumeric(NumberExpression numberExp) {
-        StringBuilder plainNumber = new StringBuilder();
-        if (numberExp.getValue() >= 1000000000)
-            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000000.0)).append("B");
-        else if (numberExp.getValue() >= 1000000)
-            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000.0)).append("M");
-        else if (numberExp.getValue() >= 1000)
-            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000.0)).append("K");
-        else {
-            if (numberExp.getExpression().contains("/"))
-                plainNumber.append(numberExp.getExpression());
-            else
-                plainNumber.append(NumberExpression.getNumberString(numberExp.getValue()));
-        }
-        documentData.addTerm(plainNumber.toString());
-        return true;
-    }
 
     private boolean tryDate(NumberExpression numberExp) {
         boolean isYear = false;
@@ -174,6 +152,24 @@ class Parse implements Runnable {
         return true;
     }
 
+    private boolean tryPlainNumeric(NumberExpression numberExp) {
+        StringBuilder plainNumber = new StringBuilder();
+        if (numberExp.getValue() >= 1000000000)
+            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000000.0)).append("B");
+        else if (numberExp.getValue() >= 1000000)
+            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000.0)).append("M");
+        else if (numberExp.getValue() >= 1000)
+            plainNumber.append(NumberExpression.getNumberString(numberExp.getValue() / 1000.0)).append("K");
+        else {
+            if (numberExp.getExpression().contains("/"))
+                plainNumber.append(numberExp.getExpression());
+            else
+                plainNumber.append(NumberExpression.getNumberString(numberExp.getValue()));
+        }
+        documentData.addTerm(plainNumber.toString());
+        return true;
+    }
+
     private boolean tryBetweenFirst(NumberExpression numberExp) {
         String potentialBetweenStr = numberExp.getPrevExpression().getExpression();
         if (potentialBetweenStr.equals("Between") || potentialBetweenStr.equals("BETWEEN") || potentialBetweenStr.equals("between")) {
@@ -194,11 +190,11 @@ class Parse implements Runnable {
     }
 
     private boolean tryCapitalLetters(Expression word, Matcher m) {
-        handleSingleCapital(word);
-        Expression next = word.getNextExpression();
         if (Character.isUpperCase(word.getExpression().charAt(0))) {
+            handleSingleCapital(word);
             boolean isEntity = false;
             int countEntity = 1;
+            Expression next = word.getNextWordExpression();
             while (next.getExpression().length() > 0 && Character.isUpperCase(next.getExpression().charAt(0)) && countEntity < MAX_ENTITY_SIZE) {
                 isEntity = true;
                 handleSingleCapital(next);
@@ -206,9 +202,11 @@ class Parse implements Runnable {
                         word.getExpression().charAt(word.getExpression().length() - 1) == ',')
                     break;
                 word.join(next);
-                m.find();
+                if(m.find())
+                    next = new Expression(m.start(), m.end(), m.group(), word.getDoc());
+                else break;
                 //next = word.getNextExpression();
-                next = new Expression(m.start(), m.end(), m.group(), word.getDoc());
+
                 countEntity++;
             }
 //            if (word.getExpression().charAt(word.getExpression().length() - 1) == '.' ||
@@ -222,13 +220,20 @@ class Parse implements Runnable {
     }
 
 
+    private void moveUpperToLower(String upperCaseWord) {
+        documentData.terms.computeIfPresent(upperCaseWord.toLowerCase(), (s, integer) -> integer + documentData.terms.get(upperCaseWord));
+        documentData.terms.remove(upperCaseWord);
+    }
+
     private void handleSingleCapital(Expression word) {
+        if (word.getExpression().equalsIgnoreCase("10b"))
+            System.out.println("danG");
         if (!parser.isStopWord(word.getExpression().toLowerCase())) {
             String stemWord = parser.stemWord(word.getExpression().toLowerCase());
             if (documentData.terms.containsKey(stemWord))
-                documentData.addTerm(stemWord);
+                documentData.addWord(stemWord);
             else
-                documentData.addTerm(stemWord.toUpperCase());
+                documentData.addWord(stemWord.toUpperCase());
         }
     }
 }

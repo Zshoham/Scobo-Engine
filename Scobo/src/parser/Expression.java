@@ -57,12 +57,12 @@ public class Expression {
         int nextSpaceIndex = end + 1;
         while (this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex != this.doc.length() -1)
             nextSpaceIndex++;
-        if(this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == this.doc.length() -1)
+        if (this.doc.charAt(nextSpaceIndex) != ' ' && nextSpaceIndex == this.doc.length() -1)
             nextSpaceIndex++;
 
         int startIndex = end;
         int endIndex = nextSpaceIndex;
-        if(this.doc.charAt(end) == ' ')
+        if (this.doc.charAt(end) == ' ')
             startIndex++;
 
 
@@ -86,12 +86,42 @@ public class Expression {
             prevSpaceIndex--;
         int startIndex = prevSpaceIndex;
         int endIndex = start;
-        if(this.doc.charAt(prevSpaceIndex) == ' ')
+        if (this.doc.charAt(prevSpaceIndex) == ' ')
             startIndex += 1;
-        if(this.doc.charAt(start - 1) == ' ')
+        if (this.doc.charAt(start - 1) == ' ')
             endIndex--;
         String expression = this.doc.substring(startIndex, endIndex);
         return new Expression(startIndex, endIndex, expression, this.doc);
+    }
+
+    public Expression getNextWordExpression(){
+        int start = this.startIndex;
+        int end = this.endIndex;
+
+        if(start == this.doc.length() || end  > this.doc.length() - 2)
+            return new Expression();
+
+        int nextSpaceIndex = end + 1;
+        while ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex)) ||
+                this.doc.charAt(nextSpaceIndex) == '-') && nextSpaceIndex != this.doc.length() -1)
+            nextSpaceIndex++;
+        if ((Character.isDigit(this.doc.charAt(nextSpaceIndex)) || Character.isLetter(this.doc.charAt(nextSpaceIndex)) ||
+                this.doc.charAt(nextSpaceIndex) == '-') && nextSpaceIndex == this.doc.length() -1)
+            nextSpaceIndex++;
+
+        int startIndex = end;
+        int endIndex = nextSpaceIndex;
+        if (this.doc.charAt(end) == ' ')
+            startIndex++;
+
+
+        StringBuilder nextExpression = new StringBuilder(this.doc.substring(startIndex, endIndex));
+        while (nextExpression.length() != 0 && stoppingChars.contains(nextExpression.charAt(nextExpression.length() - 1))){
+            endIndex--;
+            nextExpression.deleteCharAt(nextExpression.length() - 1);
+        }
+
+        return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
 
     public void join(Expression exp) {
@@ -209,8 +239,10 @@ public class Expression {
         stoppingCharsTable.add(';');
         stoppingCharsTable.add('\\');
         stoppingCharsTable.add('/');
-        stoppingCharsTable.add('.');
         stoppingCharsTable.add('>');
+        stoppingCharsTable.add('<');
+        stoppingCharsTable.add('[');
+        stoppingCharsTable.add(']');
 
         return stoppingCharsTable;
     }

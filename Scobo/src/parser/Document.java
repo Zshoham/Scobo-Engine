@@ -26,9 +26,20 @@ public class Document {
     }
 
     public void addWord(String word) {
+        if (isWordNumber(word))
+            return;
         if (word.length() < 2) return;
         length++;
         words.compute(word, this::computeAdd);
+    }
+
+    private boolean isWordNumber(String word) {
+        if (word.length() < 2)
+            return false;
+        String potentialPostFix = word.substring(word.length() - 1);
+        String potentialNumber = word.substring(0, word.length() - 2);
+        return NumberExpression.isNumberExpression(potentialNumber) &&
+                Expression.numbersPostfixTable.containsKey(potentialPostFix);
     }
 
     public void addEntity(String entity) {

@@ -33,10 +33,4 @@ public class DocumentBuffer {
         this.documents = new LinkedList<>();
         this.termCount = 0;
     }
-
-    public void flushNow() {
-        indexer.invert(documents);
-        this.documents = new LinkedList<>();
-        this.termCount = 0;
-    }
 }
