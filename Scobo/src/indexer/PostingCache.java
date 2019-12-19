@@ -1,6 +1,5 @@
 package indexer;
 
-
 import util.Configuration;
 import util.Logger;
 
@@ -10,26 +9,37 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Manages the creation and deletion of posting files and
+ * the inverted file
+ */
 public final class PostingCache {
 
-    private static final String postingPath = Configuration.getInstance().getPostingFilePath();
-    private static final String invertedFilePath = Configuration.getInstance().getInvertedFilePath();
-
-    private static Cache cache;
+    private static Indexer indexer;
     private static volatile AtomicInteger runningID;
 
-    static void initCache(Indexer indexer) {
-        File postingDir = new File(postingPath);
+    /**
+     * Initializes the cache, after this method is called
+     * it is possible to start using the cache to create posting files
+     * and later an inverted file.
+     * @param cacheIndexer the indexer using the cache.
+     */
+    static void initCache(Indexer cacheIndexer) {
+        File postingDir = new File(getPostingPath());
 
         if (!postingDir.exists())
             postingDir.mkdirs();
 
         runningID = new AtomicInteger(0);
-        cache = new Cache(indexer);
+        indexer = cacheIndexer;
     }
 
+    /**
+     * Posting file factory, creates new posting files.
+     * @return a new posting file.
+     */
     static Optional<PostingFile> newPostingFile() {
-        if (cache == null) {
+        if (indexer == null) {
             Logger.getInstance().warn("trying to use PostingCache when not initialized");
             return Optional.empty();
         }
@@ -38,19 +48,31 @@ public final class PostingCache {
         return Optional.of(res);
     }
 
+    /**
+     * Queues a flush of a posting file, this will write the
+     * posting file to the disk under a name matching it's id.
+     * @param postingFile the posting file to be written.
+     * @see #flushPosting(int, TermPosting[])
+     */
     static void queuePostingFlush(PostingFile postingFile) {
         final int postingFileID = postingFile.getID();
         final TermPosting[] postings = postingFile.getPostings();
-        cache.indexer.IOTasks.add(() -> flushPosting(postingFileID, postings));
+        indexer.IOTasks.add(() -> flushPosting(postingFileID, postings));
     }
 
-    static void flushPosting(int postingFileId, TermPosting[] postings) {
+    /**
+     * Flushes the posting file to the disk.
+     * @param postingFileId the id of the posting file to be flushed.
+     * @param postings the postings that need to be written to the file.
+     * @see #queuePostingFlush(PostingFile)
+     */
+    private static void flushPosting(int postingFileId, TermPosting[] postings) {
         try {
             String path = getPostingFilePath(postingFileId);
             BufferedWriter writer = new BufferedWriter(new FileWriter(path));
 
             for (TermPosting termPosting : postings)
-                writer.append(termPosting.dump());
+                writer.append(termPosting.toString());
 
             writer.close();
 
@@ -58,76 +80,94 @@ public final class PostingCache {
             Logger.getInstance().error(e);
         }
         finally {
-            cache.indexer.IOTasks.complete();
+            indexer.IOTasks.complete();
         }
     }
 
-    static String getPostingFilePath(int postingFileID) {
-        return postingPath + postingFileID + ".txt";
-    }
-
-    public static void merge(Dictionary dictionary) {
+    /**
+     * Merges all the posting files into an inverted file.
+     * @param dictionary the dictionary that will map into the newly created
+     *                   inverted file.
+     */
+    static void merge(Dictionary dictionary) {
         try {
             int postingFileCount = runningID.get();
-            BufferedWriter invertedFileWriter = new BufferedWriter(new FileWriter(invertedFilePath));
+            BufferedWriter invertedFileWriter = new BufferedWriter(new FileWriter(getInvertedFilePath()));
             BufferedReader[] postingReaders = new BufferedReader[postingFileCount];
             boolean isFirstRead = true;
 
+            //line number of the inverted file.
             int lineNumber = 0;
-            // find min term of all files.
+            // number of readers who have finished reading their files.
+            int countNull = 0;
+
+            //the latest line each reader read.
             ArrayList<String> lines = new ArrayList<>();
+            // the alphabetically minimal lines of the above lines.
             LinkedList<Integer> minLines = new LinkedList<>();
 
-            int countNull = 0;
+            // while there are readers who haven't finished reading their file.
             while (countNull < postingFileCount) {
+                //the minimal term of terms this iteration.
                 String minTerm = null;
+                //reset number of null readers.
                 countNull = 0;
+
+                //foreach reader
                 for (int i = 0; i < postingFileCount; i++) {
                     if (isFirstRead) {
+                        // initialize the reader if this is the first read.
                         postingReaders[i] = new BufferedReader(new FileReader(getPostingFilePath(i)));
                         lines.add(i, postingReaders[i].readLine());
                     }
-
                     String line = lines.get(i);
-                    if (line != null) {
+
+                    if (line != null) { // if the reader could read a new line.
                         String term = line.substring(0, line.indexOf("|"));
-                        if (minTerm == null) {
+                        if (minTerm == null) { // the min term hasn't been updated this iteration yet.
                             minTerm = term;
                             minLines.addLast(i);
-                        } else if (term.compareTo(minTerm) < 0) {
+                        } else if (term.compareTo(minTerm) < 0) { // we found a new min term.
                             minTerm = term;
                             minLines.clear();
                             minLines.addLast(i);
-                        } else if (term.compareTo(minTerm) == 0)
+                        } else if (term.compareTo(minTerm) == 0) // we found a new term equal to the min.
                             minLines.addLast(i);
                     }
-                    else countNull++;
+                    else countNull++; // the reader couldn't read another line.
                 }
+
+                //if non of the readers read a new line we are finished.
                 if (countNull >= postingFileCount)
                     break;
 
                 isFirstRead = false;
+
+                // merge all the min lines from the files into one line and read the next line.
                 int firstMinLine = minLines.removeFirst();
                 StringBuilder docsStr = new StringBuilder(lines.get(firstMinLine));
                 for (int line : minLines) {
-                    String lineStr = lines.get(line);
-                    docsStr.append(lineStr.substring(lineStr.indexOf("|")));
-                    lines.set(line, postingReaders[line].readLine());
+                    String lineStr = lines.get(line); // line of the format t(|d,f)*
+                    docsStr.append(lineStr.substring(lineStr.indexOf("|"))); // get only the (|d,f)* part
+                    lines.set(line, postingReaders[line].readLine()); // read the next line
                 }
                 lines.set(firstMinLine, postingReaders[firstMinLine].readLine());
-                docsStr.append("\n");
-                invertedFileWriter.write(docsStr.toString());
+                docsStr.append("\n"); // append line ending.
+                invertedFileWriter.append(docsStr); // write the merged line.
 
-                // update dictionary pointer.
+                // get term for minTerm from dictionary.
                 Optional<Term> optionalTerm = dictionary.lookupTerm(minTerm);
                 if (!optionalTerm.isPresent())
                     throw new IllegalStateException("term does not exist in dictionary");
 
+                // update pointer.
                 optionalTerm.get().pointer = lineNumber;
 
                 minLines.clear();
                 lineNumber++;
             }
+
+            // release all the files held by the readers and writers.
             invertedFileWriter.close();
             for (int i = 0; i < postingReaders.length; i++)
                 postingReaders[i].close();
@@ -137,8 +177,11 @@ public final class PostingCache {
         }
     }
 
-    public static void clean() {
-        File postingsDir = new File(postingPath);
+    /**
+     * Deletes all the posting files.
+     */
+    static void clean() {
+        File postingsDir = new File(getPostingPath());
         for (File file : postingsDir.listFiles()) {
             file.delete();
         }
@@ -151,16 +194,22 @@ public final class PostingCache {
      * @throws IOException if there is a problem deleting the file.
      */
     public static void deleteInvertedFile() throws IOException {
-        Files.deleteIfExists(Paths.get(invertedFilePath));
+        Files.deleteIfExists(Paths.get(getInvertedFilePath()));
     }
 
+    // get path to Posting file directory.
+    private static String getPostingPath() {
+        return Configuration.getInstance().getPostingFilePath();
+    }
 
-    private static class Cache {
+    // get path to inverted file.
+    private static String getInvertedFilePath() {
+        return Configuration.getInstance().getInvertedFilePath();
+    }
 
-        public Indexer indexer;
-
-        public Cache(Indexer indexer) {
-            this.indexer = indexer;
-        }
+    // get path to the posting file with the given id.
+    // note: this method does not garnette that the file exists.
+    private static String getPostingFilePath(int postingFileID) {
+        return getPostingPath() + postingFileID + ".txt";
     }
 }

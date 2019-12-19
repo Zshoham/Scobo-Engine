@@ -79,7 +79,7 @@ class Parse implements Runnable {
         else if (tryPlainNumeric(numberExp)) return;
     }
     private void parseHyphenSeparatedExp(Expression exp) {
-        documentData.addWord(exp.getExpression());
+        documentData.addTerm(exp.getExpression());
     }
     private void parseWords(Expression word, Matcher m) {
         if (!(word.isPostfixExpression() || word.isDollarExpression() ||
@@ -87,7 +87,7 @@ class Parse implements Runnable {
             if (tryCapitalLetters(word, m)) return;
             else if (!parser.isStopWord(word.getExpression())) {
                 String stemWord = parser.stemWord(word.getExpression().toLowerCase());
-                documentData.addWord(stemWord);
+                documentData.addTerm(stemWord);
                 if (documentData.terms.containsKey(stemWord.toUpperCase()))
                     moveUpperToLower(stemWord.toUpperCase());
             }
@@ -116,7 +116,7 @@ class Parse implements Runnable {
             date = Expression.monthTable.get(month.getExpression()) + "-0" + numberExp.getExpression();
         else
             date = Expression.monthTable.get(month.getExpression()) + "-" + numberExp.getExpression();
-        documentData.addTerm(date);
+        documentData.addNumber(date);
         return true;
     }
 
@@ -125,7 +125,7 @@ class Parse implements Runnable {
         if (next.isPostfixExpression())
             next = next.getNextExpression();
         if (next.isPercentExpression()) {
-            documentData.addTerm(NumberExpression.getNumberString(numberExp.getValue()) + "%");
+            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + "%");
             return true;
         }
         return false;
@@ -145,7 +145,7 @@ class Parse implements Runnable {
             potentialTerm.append(NumberExpression.getNumberString(numberExp.getValue() / 1000000)).append(" M Dollars");
         else
             potentialTerm.append(numberExp.getExpression()).append(" Dollars");
-        documentData.addTerm(potentialTerm.toString());
+        documentData.addNumber(potentialTerm.toString());
         return true;
     }
 
@@ -163,7 +163,7 @@ class Parse implements Runnable {
             else
                 plainNumber.append(NumberExpression.getNumberString(numberExp.getValue()));
         }
-        documentData.addTerm(plainNumber.toString());
+        documentData.addNumber(plainNumber.toString());
         return true;
     }
 
@@ -227,9 +227,9 @@ class Parse implements Runnable {
         if (!parser.isStopWord(word.getExpression().toLowerCase())) {
             String stemWord = parser.stemWord(word.getExpression().toLowerCase());
             if (documentData.terms.containsKey(stemWord))
-                documentData.addWord(stemWord);
+                documentData.addTerm(stemWord);
             else
-                documentData.addWord(stemWord.toUpperCase());
+                documentData.addTerm(stemWord.toUpperCase());
         }
     }
 }

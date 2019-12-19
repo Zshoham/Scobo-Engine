@@ -63,11 +63,22 @@ public final class TaskManager {
      * <p><em> The Task group will have MEDIUM priority
      * @param type the task type {IO, COMPUTE}
      * @return a Task Group object capable of executing tasks.
+     * @see #getTaskGroup(TaskType, TaskPriority)
      */
     public static TaskGroup getTaskGroup(TaskType type) {
         return new TaskGroup(getInstance(), type, TaskPriority.DEFAULT);
     }
 
+    /**
+     * Creates a Task Group that can be used to execute tasks
+     * as part of group and treat all the tasks executed through
+     * the group as a single unit.
+     * <p><em> The Task group will have MEDIUM priority
+     * @param type the task type {IO, COMPUTE}
+     * @param priority the tasks priority {HIGH (>=), DEFAULT (>=), LOW}
+     * @return a Task Group object capable of executing tasks.
+     * @see #getTaskGroup(TaskType)
+     */
     public static TaskGroup getTaskGroup(TaskType type, TaskPriority priority) {
         return new TaskGroup(getInstance(), type, priority);
     }
@@ -75,30 +86,12 @@ public final class TaskManager {
     /**
      * Enqueue's the task into the IO task queue, the task
      * will execute when its turn arrives.
-     * @param task a task to execute
-     */
-    public void executeIO(Runnable task) {
-        IOExecutor.execute(task);
-    }
-
-    /**
-     * Enqueue's the task into the IO task queue, the task
-     * will execute when its turn arrives.
      * @param task task a task to execute
      * @param priority priority of the task in the queue, higher priority
-     *                  means the tasks turn will come sooner.
+     *                 means the tasks turn will come sooner.
      */
     public void executeIO(Runnable task, int priority) {
         IOExecutor.execute(task, priority);
-    }
-
-    /**
-     * Enqueue's the task into the CPU task queue, the task
-     * will execute when its turn arrives.
-     * @param task a task to execute
-     */
-    public void executeCPU(Runnable task) {
-        CPUExecutor.execute(task);
     }
 
     /**
