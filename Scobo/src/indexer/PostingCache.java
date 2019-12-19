@@ -18,6 +18,8 @@ public final class PostingCache {
     private static Indexer indexer;
     private static volatile AtomicInteger runningID;
 
+    private PostingCache() {}
+
     /**
      * Initializes the cache, after this method is called
      * it is possible to start using the cache to create posting files
@@ -147,8 +149,8 @@ public final class PostingCache {
                 int firstMinLine = minLines.removeFirst();
                 StringBuilder docsStr = new StringBuilder(lines.get(firstMinLine));
                 for (int line : minLines) {
-                    String lineStr = lines.get(line); // line of the format t(|d,f)*
-                    docsStr.append(lineStr.substring(lineStr.indexOf("|"))); // get only the (|d,f)* part
+                    String lineStr = lines.get(line); // line of the format t(|d,f)+
+                    docsStr.append(lineStr.substring(lineStr.indexOf("|"))); // get only the (|d,f)+ part
                     lines.set(line, postingReaders[line].readLine()); // read the next line
                 }
                 lines.set(firstMinLine, postingReaders[firstMinLine].readLine());
@@ -208,7 +210,7 @@ public final class PostingCache {
     }
 
     // get path to the posting file with the given id.
-    // note: this method does not garnette that the file exists.
+    // note: this method does not guarantee that the file exists.
     private static String getPostingFilePath(int postingFileID) {
         return getPostingPath() + postingFileID + ".txt";
     }

@@ -12,11 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Maps document names to document ID's and generates said ID's.
+ * Maps document names to document IDs and generates said IDs.
  * {@code DocumentMap} can be in one of two modes:
  * <ul>
  *     <li>ADD mode - meant to be used internally by the indexer, when in ADD mode
- *     it is possible to add documents to the map and receive their ID's </li>
+ *     it is possible to add documents to the map and receive their IDs </li>
  *     <li>LOOKUP mode - is meant to be used externally after indexing, when LOOKUP mode
  *     it is impossible to add new documents but looking up document names by ID is available</li>
  * </ul>
@@ -27,17 +27,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * While in LOOKUP all the mappings are available in memory and thus it is possible to preform lookups
  * for any document.
  *
- * <p><em>{@code DocumentMap} is externally immutable meaning that it is immutable outside of
- * the scope of its package (indexer)</em>
- *
  * <p> Document Map file format:
  * Each line in the file represents a document ID -> document data mapping
  * each line line will look like so: [document ID]|[(document data)]\n
  * <ul>
  *     <li>document ID - id given to the document by the map</li>
- *     <li>document data - csv  data about the document including document name </li>
+ *     <li>document data - csv  data about the doc*`DocumentMap` is externally immutable meaning that it is immutable outside of the scope of its package (indexer)*  ument including document name </li>
  * </ul>
  *
+ * <p><em>{@code DocumentMap} is externally immutable meaning that it is immutable outside of
+ * the scope of its package (indexer)</em>
  */
 public final class DocumentMap {
 
@@ -203,6 +202,7 @@ public final class DocumentMap {
         }
     }
 
+    // returns the path to the dictionary file as specified by Configuration
     private static String getPath() {
         return Configuration.getInstance().getDocumentMapPath();
     }

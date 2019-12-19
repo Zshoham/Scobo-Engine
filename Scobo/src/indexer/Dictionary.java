@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *     <li>posting pointer - index of the posting file this terms posting appears in</li>
  * </ul>
  *
+ * <p><em>{@code Dictionary} is externally immutable meaning that it is immutable outside of
+ * the scope of its package (indexer)</em>
+ *
  */
 public final class Dictionary {
 
@@ -59,18 +62,27 @@ public final class Dictionary {
     }
 
 
-    public void addTermFromDocument(String term, int frequency) {
-        addTerm(term, 1, frequency);
+    /**
+     * Adds the number to the dictionary, if the number was already contained
+     * its statistics will be updated, otherwise the number will be added
+     * to the dictionary.
+     *
+     * @param number a number to add to the dictionary.
+     * @param frequency the frequency of the number in the document.
+     */
+    protected void addNumberFromDocument(String number, int frequency) {
+        addTerm(number, 1, frequency);
     }
 
     /**
-     * Adds the word to the dictionary, if the word was already contained
-     * its statistics will be updated, otherwise the word will be added
+     * Adds the term to the dictionary, if the word was already contained
+     * its statistics will be updated, otherwise the term will be added
      * to the dictionary.
      *
-     * @param word a word to add to the dictionary.
+     * @param term a term to add to the dictionary.
+     * @param frequency the frequency of the term in the document.
      */
-    protected void addWordFromDocument(String word, int frequency) {
+    protected void addTermFromDocument(String term, int frequency) {
         // if lower case equals upper case
         //      add as lower
         //
@@ -85,12 +97,9 @@ public final class Dictionary {
         //
         // add to document
 
-        if (word.equalsIgnoreCase("1b"))
-            System.out.println(word + "from words");
-
-        String upperCaseTerm = word.toUpperCase();
-        String lowerCaseTerm = word.toLowerCase();
-        boolean isUpperCase = Character.isUpperCase(word.charAt(0));
+        String upperCaseTerm = term.toUpperCase();
+        String lowerCaseTerm = term.toLowerCase();
+        boolean isUpperCase = Character.isUpperCase(term.charAt(0));
 
         if (upperCaseTerm.equals(lowerCaseTerm)) {
             addTerm(lowerCaseTerm, 1, frequency);
@@ -132,6 +141,7 @@ public final class Dictionary {
      * to the dictionary.
      *
      * @param entity a term to add to the dictionary.
+     * @param frequency the frequency of the entity in the document.
      */
     protected void addEntityFromDocument(String entity, int frequency) {
         // if entity exists in dictionary
@@ -163,9 +173,12 @@ public final class Dictionary {
         entities.put(entity, frequency);
     }
 
-    // helper function to add any term to the dictionary.
-    // returns true if the term is new to the dictionary
-    // false otherwise.
+    /*
+    helper function to add any term to the dictionary.
+    where count is the number of new documents the term
+    appears in and frequency is the number of times the term
+    appears in said documents
+     */
     private void addTerm(String term, int count, int frequency) {
         // compute the terms mapping.
         dictionary.merge(term, new Term(term, frequency, count, -1), (dictValue, newValue) -> {
@@ -201,6 +214,13 @@ public final class Dictionary {
         return Optional.ofNullable(dictionary.get(upperCaseTerm));
     }
 
+    /**
+     * Retrieves information about an entity via a {@link Term} object
+     *
+     * @param entity string representation of the term
+     * @return  an optional of a {@link Term}, will be empty if the
+     *          term was not yet added to the dictionary or added with a null mapping.
+     */
     Optional<Term> lookupEntity(String entity) {
         return Optional.ofNullable(dictionary.get(entity));
     }
@@ -292,6 +312,7 @@ public final class Dictionary {
         return res;
     }
 
+    // returns the path to the dictionary file as specified by Configuration
     private static String getPath() {
         return Configuration.getInstance().getDictionaryPath();
     }

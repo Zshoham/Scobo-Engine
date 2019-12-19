@@ -84,7 +84,7 @@ public final class TaskManager {
     }
 
     /**
-     * Enqueue's the task into the IO task queue, the task
+     * Enqueues the task into the IO task queue, the task
      * will execute when its turn arrives.
      * @param task task a task to execute
      * @param priority priority of the task in the queue, higher priority
@@ -95,7 +95,7 @@ public final class TaskManager {
     }
 
     /**
-     * Enqueue's the task into the CPU task queue, the task
+     * Enqueues the task into the CPU task queue, the task
      * will execute when its turn arrives.
      * @param task task a task to execute
      * @param priority priority of the task in the queue, higher priority

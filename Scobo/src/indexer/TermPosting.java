@@ -36,11 +36,15 @@ class TermPosting {
         });
     }
 
+    /**
+     * @return the term of the posting.
+     */
     public String getTerm() { return this.term; }
 
 
     /**
      * @return  a string containing all the contents of this term posting.
+     *          the format of the posting is term(|docID,tf)+
      */
     @Override
     public String toString() {

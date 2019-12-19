@@ -137,7 +137,7 @@ public class Indexer {
 
     private void invertNumbers(int docID, PostingFile newPosting, Document document) {
         for (Map.Entry<String, Integer> term : document.numbers.entrySet()) {
-            dictionary.addTermFromDocument(term.getKey(), term.getValue());
+            dictionary.addNumberFromDocument(term.getKey(), term.getValue());
             Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
@@ -149,7 +149,7 @@ public class Indexer {
 
     private void invertWords(int docID, PostingFile newPosting, Document document) {
         for (Map.Entry<String, Integer> term : document.terms.entrySet()) {
-            dictionary.addWordFromDocument(term.getKey(), term.getValue());
+            dictionary.addTermFromDocument(term.getKey(), term.getValue());
             Optional<Term> dictionaryTerm = dictionary.lookupTerm(term.getKey());
             if (!dictionaryTerm.isPresent())
                 throw new IllegalStateException("term wasn't properly added to dictionary");
@@ -170,6 +170,9 @@ public class Indexer {
         }
     }
 
+    /**
+     * @return the number of terms in the dictionary.
+     */
     public int getTermCount() {
         return this.termCount;
     }

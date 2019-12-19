@@ -39,7 +39,7 @@ public class PostingFile {
     }
 
     /**
-     * @return a alphabetically sorted array of the term postings in the posting file.
+     * @return an alphabetically sorted array of the term postings in the posting file.
      */
     TermPosting[] getPostings() {
         TermPosting[] res = new TermPosting[postingDictionary.size()];

@@ -1,5 +1,8 @@
 package indexer;
 
+/**
+ * Holds information about a term.
+ */
 public class Term {
 
     /**

@@ -98,7 +98,7 @@ public class Configuration {
     }
 
     /**
-     * Changes the corpus path, this change only apply's to
+     * Changes the corpus path, this change only applies to
      * the current run of the engine, and will not persist
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param corpusPath the size of the batch size.
@@ -108,7 +108,7 @@ public class Configuration {
     }
 
     /**
-     * Changes the index path, this change only apply's to
+     * Changes the index path, this change only applies to
      * the current run of the engine, and will not persist
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param indexPath the size of the batch size.
@@ -116,7 +116,7 @@ public class Configuration {
     public void setIndexPath(String indexPath) { this.indexPath = indexPath; }
 
     /**
-     * Changes the parsers batch size, this change only apply's to
+     * Changes the parsers batch size, this change only applies to
      * the current run of the engine, and will not persist
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param parserBatchSize the size of the batch size.
@@ -124,7 +124,7 @@ public class Configuration {
     public void setParserBatchSize(int parserBatchSize) { this.parserBatchSize = parserBatchSize; }
 
     /**
-     * Changes the path to the log file, this change only apply's to
+     * Changes the path to the log file, this change only applies to
      * the current run of the engine, and will not persist
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param logPath the new path to the log file.
@@ -132,7 +132,7 @@ public class Configuration {
     public void setLogPath(String logPath) { this.logPath = logPath; }
 
     /**
-     * Changes weather or not the engine will use a stemmer, this change only apply's to
+     * Changes weather or not the engine will use a stemmer, this change only applies to
      * the current run of the engine, and will not persist
      * unless the {@link Configuration#updateConfig()} method is called.
      * @param useStemmer true if the engine should use a stemmer, false otherwise.
@@ -161,6 +161,7 @@ public class Configuration {
         return indexPath + "/"  + getUseStemmerPath() + "/inverted_file.txt";
     }
 
+    // returns the correct folder name for the index according to the value of useStemmer
     private String getUseStemmerPath() {
         if (useStemmer) return "with_stemming";
         else return "without_stemming";
