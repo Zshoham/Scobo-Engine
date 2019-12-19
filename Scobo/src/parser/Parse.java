@@ -205,7 +205,7 @@ class Parse implements Runnable {
     private boolean tryWight(NumberExpression numberExp) {
         Expression next = numberExp.getNextExpression();
         if (next.isWeightExpression()) {
-            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + Expression.wightTable.get(next.getExpression()));
+            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + " " + Expression.wightTable.get(next.getExpression()));
             return true;
         }
         return false;
@@ -223,7 +223,7 @@ class Parse implements Runnable {
     private boolean tryDistance(NumberExpression numberExp) {
         Expression next = numberExp.getNextExpression();
         if (next.isDistanceExpression()) {
-            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + Expression.distanceTable.get(next.getExpression()));
+            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + " " +Expression.distanceTable.get(next.getExpression()));
             return true;
         }
         return false;

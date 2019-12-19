@@ -111,16 +111,16 @@ public class Controller {
         long t0 = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();
-        double readTime = (System.currentTimeMillis() - t0) / 60000.0;
+        double readTime = (System.currentTimeMillis() - t0) / 1000.0;
         parser.awaitParse();
-        double parseTime = (System.currentTimeMillis() - t0) / 60000.0;
+        double parseTime = (System.currentTimeMillis() - t0) / 1000.0;
         indexer.awaitIndex();
-        double indexTime = (System.currentTimeMillis() - t0) / 60000.0;
+        double indexTime = (System.currentTimeMillis() - t0) / 1000.0;
         String message = "number of documents indexed: " + parser.getDocumentCount() + "\n" +
                 "number of unique terms identified: " + indexer.getTermCount() + "\n" +
-                "time to read the corpus: " + readTime +"\n" +
-                "time to parse all documents: " + parseTime + "\n" +
-                "total indexing time: " + indexTime;
+                "time to read the corpus: " + readTime +"sec\n" +
+                "time to parse all documents: " + parseTime + "sec\n" +
+                "total indexing time: " + indexTime + "sec";
         showAlert("indexing completed successfully", message);
     }
 
