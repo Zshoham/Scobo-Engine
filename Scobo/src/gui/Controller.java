@@ -52,7 +52,7 @@ public class Controller {
         indexPath.setText(new File(configuration.getIndexPath()).getAbsolutePath());
         logPath.setText(new File(configuration.getLogPath()).getAbsolutePath());
         useStemmer.selectedProperty().setValue(configuration.getUseStemmer());
-        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> updateOptions());
+        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> configuration.setUseStemmer(newValue));
 
         parserBatchSize.setText(String.valueOf(configuration.getParserBatchSize()));
         parserBatchSize.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -111,11 +111,11 @@ public class Controller {
         long t0 = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();
-        long readTime = System.currentTimeMillis() - t0 / 60000;
+        double readTime = (System.currentTimeMillis() - t0) / 60000.0;
         parser.awaitParse();
-        long parseTime = System.currentTimeMillis() - t0 / 60000;
+        double parseTime = (System.currentTimeMillis() - t0) / 60000.0;
         indexer.awaitIndex();
-        long indexTime = System.currentTimeMillis() - t0 / 60000;
+        double indexTime = (System.currentTimeMillis() - t0) / 60000.0;
         String message = "number of documents indexed: " + parser.getDocumentCount() + "\n" +
                 "number of unique terms identified: " + indexer.getTermCount() + "\n" +
                 "time to read the corpus: " + readTime +"\n" +
@@ -147,6 +147,7 @@ public class Controller {
         try {
             this.dictionary = Dictionary.loadDictionary();
             this.documentMap = DocumentMap.loadDocumentMap();
+            viewableDictionary.clear();
         } catch (IOException e) {
             showAlert("ERROR", "could not load dictionaries");
             return;

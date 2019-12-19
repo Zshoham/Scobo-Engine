@@ -126,10 +126,10 @@ public class NumberExpression extends Expression {
             index++;
             int slashIndex = strExp.indexOf("/");
             double numerator = Double.parseDouble(strExp.substring(index, slashIndex)); //numerator numeric value
-            //TODO: index = slashIndex + 1;?
+            index = slashIndex + 1;
 
-            //TODO: double denominator = new NumberExpression(0,0, strExp.substring(index), exp.getDoc()).getValue();?
-            double denominator = Double.parseDouble(strExp.substring(slashIndex + 1));
+            double denominator = new NumberExpression(0,0, strExp.substring(index), exp.getDoc()).getValue();
+//            double denominator = Double.parseDouble(strExp.substring(slashIndex + 1));
 
             value += numerator / denominator;
         }

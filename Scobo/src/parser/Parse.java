@@ -92,15 +92,20 @@ class Parse implements Runnable {
                 numberExp = NumberExpression.createMixedNumber(numberExp);
                 if (tryDollars(numberExp)) return;
                 else if (tryPercent(numberExp)) return;
+                else if (tryDistance(numberExp)) return;
+                else if (tryWight(numberExp)) return;
                 else if (tryPlainNumeric(numberExp)) return;
             }
         }
         else if (tryDate(numberExp)) return;
         else if (tryPercent(numberExp)) return;
         else if (tryDollars(numberExp)) return;
+        else if (tryDistance(numberExp)) return;
+        else if (tryWight(numberExp)) return;
         else if (tryBetweenFirst(numberExp)) return;
         else if (tryPlainNumeric(numberExp)) return;
     }
+
 
     /**
      * parse all the hyphen separated words or numbers
@@ -117,7 +122,9 @@ class Parse implements Runnable {
      */
     private void parseWords(Expression word, Matcher m) {
         if (!(word.isPostfixExpression() || word.isDollarExpression() ||
-                word.isMonthExpression() || word.isPercentExpression() || NumberExpression.isNumberExpression(word))) {
+                word.isMonthExpression() || word.isPercentExpression() ||
+                word.isDistanceExpression() || word.isWeightExpression() ||
+                NumberExpression.isNumberExpression(word))) {
             if (tryCapitalLetters(word, m)) return;
             else if (!parser.isStopWord(word.getExpression())) {
                 String stemWord = parser.stemWord(word.getExpression().toLowerCase());
@@ -173,7 +180,7 @@ class Parse implements Runnable {
      *     <li>Number percent</li>
      *     <li>Number percentage</li>
      * </ul>
-     * If number following this rules, it added to the dictionary as number%
+     * If number following this rules, it is added to the dictionary as number%
      */
     private boolean tryPercent(NumberExpression numberExp) {
         Expression next = numberExp.getNextExpression();
@@ -181,6 +188,42 @@ class Parse implements Runnable {
             next = next.getNextExpression();
         if (next.isPercentExpression()) {
             documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + "%");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check weight rule
+     * legal distance term is:
+     * number[wight postfix]
+     * where wight postfix is one of the following:
+     * {kg, KG, Kg, g, G, mg, MG}
+     *
+     * If the number follows this rule, it is added to the dictionary as number[lowercase postfix]
+     */
+    private boolean tryWight(NumberExpression numberExp) {
+        Expression next = numberExp.getNextExpression();
+        if (next.isWeightExpression()) {
+            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + Expression.wightTable.get(next.getExpression()));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check distance rule
+     * legal distance term is:
+     * number[distance postfix]
+     * where distance postfix is one of the following:
+     * {km, KM, Km, cm, CM, mm, MM}
+     *
+     * If the number follows this rule, it is added to the dictionary as number[lowercase postfix]
+     */
+    private boolean tryDistance(NumberExpression numberExp) {
+        Expression next = numberExp.getNextExpression();
+        if (next.isDistanceExpression()) {
+            documentData.addNumber(NumberExpression.getNumberString(numberExp.getValue()) + Expression.distanceTable.get(next.getExpression()));
             return true;
         }
         return false;

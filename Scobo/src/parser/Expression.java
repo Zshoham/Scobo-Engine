@@ -15,7 +15,10 @@ public class Expression {
     public static HashSet<String> dollarExpressions = buildDollarExpressions();
     //map all the number postfixes to their numeric value
     public static HashMap<String, Double> numbersPostfixTable = buildNumbersPostfixTable();
-
+    // maps distance postfixes to their desired form
+    public static HashMap<String, String> distanceTable = buildDistanceTable();
+    // maps wight postfixes to their desired for
+    public static HashMap<String, String> wightTable = buildWightTable();
 
     private int startIndex;    // index to first char of the expression in the text
     private int endIndex;      // index to char after the last char of the expression in the text
@@ -87,6 +90,25 @@ public class Expression {
     public boolean isPostfixExpression(){
         return numbersPostfixTable.containsKey(this.expression);
     }
+
+    /**
+     * check if expression is weight expression<br>
+     * legitimate weight expressions are defined by the weight table
+     * built in the static function {@link #buildWightTable()}
+     * @return true if expression is legitimate weight
+     */
+    public boolean isWeightExpression(){
+        return wightTable.containsKey(this.expression);
+    }
+    /**
+     * check if expression is distance expression<br>
+     * legitimate distance expressions are defined by the distance table
+     * built in the static function {@link #buildDistanceTable()} ()}
+     * @return true if expression is legitimate distance
+     */    public boolean isDistanceExpression(){
+        return distanceTable.containsKey(this.expression);
+    }
+
     //endregion
 
     //region Expression get Next/Prev
@@ -342,6 +364,34 @@ public class Expression {
         table.put("TRILLION", 1000000000000.0);
         table.put("T", 1000000000000.0);
         table.put("t", 1000000000000.0);
+        return table;
+    }
+    private static HashMap<String, String> buildDistanceTable() {
+        HashMap<String, String> table = new HashMap<>();
+
+        table.put("km", "km");
+        table.put("KM", "km");
+        table.put("Km", "km");
+        table.put("cm", "cm");
+        table.put("CM", "cm");
+        table.put("mm", "mm");
+        table.put("MM", "mm");
+        table.put("nm", "nm");
+        table.put("NM", "nm");
+
+        return table;
+    }
+    private static HashMap<String, String> buildWightTable() {
+        HashMap<String, String> table = new HashMap<>();
+
+        table.put("kg", "kg");
+        table.put("KG", "kg");
+        table.put("Kg", "kg");
+        table.put("g", "g");
+        table.put("G", "g");
+        table.put("mg", "mg");
+        table.put("MG", "mg");
+
         return table;
     }
     //endregion
