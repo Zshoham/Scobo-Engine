@@ -14,22 +14,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 /**
- * Manages documents parsing.
+ * Manages file reading from the corpus,
+ * and documents parsing.
  */
 public class Parser {
 
+    // Control the amount of files to read and separate every time
     private static final int BATCH_SIZE = Configuration.getInstance().getParserBatchSize();
 
     private String corpusPath;
-    private HashSet<String> stopWords;
+    private HashSet<String> stopWords; // List of all the stop words- the words we ignore while parsing documents
 
-    TaskGroup IOTasks;
-    TaskGroup CPUTasks;
+    TaskGroup IOTasks;  // Group all the IO tasks
+    TaskGroup CPUTasks; // Group all the CPU tasks
     Logger LOG = Logger.getInstance();
 
-    private volatile AtomicInteger documentCount;
+    private volatile AtomicInteger documentCount; // Count how many document have been parsed
 
-    private Indexer indexer;
+    private Indexer indexer; // Pointer to the indexer
 
     /**
      * Constructor for the parser object
@@ -94,21 +96,33 @@ public class Parser {
         indexer.index(document);
     }
 
+    /**
+     * Start the files reading and documents parsing
+     * and start new thread to wait until parsing is done
+     */
     public void start() {
-        new ReadFile(corpusPath, this);
-
-        new Thread(this::finish, "parse waiter").start();
+        new ReadFile(corpusPath, this); //Start reading files
+        new Thread(this::finish, "parse waiter").start(); // Start new thread to wait for parsing to finish
     }
 
+    /**
+     * What to do when the parsing process is done
+     */
     private void finish() {
-        this.awaitParse();
-        indexer.onFinishParser();
+        this.awaitParse();        // Wait until parsing is done
+        indexer.onFinishParser(); // Wait acknowledge the indexer parsing is done and he can now wait for indexing to finish
     }
 
+    /**
+     * Wait until finished reading all the corpus files
+     */
     public void awaitRead() {
         IOTasks.awaitCompletion();
     }
 
+    /**
+     * Wait until parsing is done
+     */
     public void awaitParse() {
         CPUTasks.openGroup();
         CPUTasks.awaitCompletion();
