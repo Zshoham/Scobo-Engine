@@ -3,10 +3,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
 
+/**
+ *
+ */
 public class Expression {
+    //map all the months in the year to their numeric value
     public static HashMap<String, String> monthTable = buildMonthTable();
+    //set of all the chars that stop a sentence
     public static HashSet<Character> stoppingChars = buildStoppingCharsTable();
+    //set of all the dollar expressions
     public static HashSet<String> dollarExpressions = buildDollarExpressions();
+    //map all the number postfixes to their numeric value
     public static HashMap<String, Double> numbersPostfixTable = buildNumbersPostfixTable();
 
 
@@ -15,38 +22,79 @@ public class Expression {
     private String expression; // the string expression
     private String doc;        // the document
 
-    public Expression() {
-        this(0, 0, "", "");
-    }
-
+    //region contractors
     public Expression(int startIndex, int endIndex, String expression, String doc) {
         this.startIndex = startIndex;
         this.endIndex = endIndex;
         this.expression = expression;
         this.doc = doc;
     }
+    public Expression() {
+        this(0, 0, "", "");
+    }
+    //endregion
 
+    //region getters
     public int getStartIndex() { return startIndex; }
     public int getEndIndex() { return endIndex; }
     public String getExpression() { return expression; }
     public String getDoc() { return doc; }
+    //endregion
 
+    //region Check is part of
+    //the functions in this region check if an expression is part of the group defined by their signature
+
+    /**
+     * check if expression is a percent expression<br>
+     * legitimate percent expressions are:
+     * <ul>
+     *     <li>$</li>
+     *     <li>percent</li>
+     *     <li>percentage</li>
+     * </ul>
+     * @return true if expression is legitimate percent expression
+     */
     public boolean isPercentExpression(){
         return expression.equals("%") || expression.equals("percent") || expression.equals("percentage");
     }
+    /**
+     * check if expression is a percent expression<br>
+     * legitimate percent expressions is defined by the month table
+     * built in the static function {@link #buildMonthTable()}
+     * @return true if expression is legitimate month
+     */
     public boolean isMonthExpression(){
         return monthTable.containsKey(expression);
     }
+    /**
+     * check if expression is a dollar expression<br>
+     * legitimate dollar expressions is defined by the dollar table
+     * built in the static function {@link #buildDollarExpressions()}
+     * @return true if expression is legitimate dollar expression
+     */
     public boolean isDollarExpression(){
         String exp = expression;
         if(expression.equals("U.S.") || expression.equals("u.s."))
             exp += " " + this.getNextExpression().expression;
         return dollarExpressions.contains(exp);
     }
+    /**
+     * check if expression is a postfix expression<br>
+     * legitimate postfix expressions is defined by the numbers postfixes table
+     * built in the static function {@link #buildNumbersPostfixTable()}
+     * @return true if expression is legitimate postfix
+     */
     public boolean isPostfixExpression(){
         return numbersPostfixTable.containsKey(this.expression);
     }
+    //endregion
 
+    //region Expression get Next/Prev
+    /**
+     * Get the next expression in the document<br>
+     * the next expression is the string after this expression's space, until the next space in the text
+     * @return Expression of the next expression, if exist. if not- empty expression
+     */
     public Expression getNextExpression(){
         int start = this.startIndex;
         int end = this.endIndex;
@@ -74,6 +122,12 @@ public class Expression {
 
         return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
+
+    /**
+     * Get the previous expression in the expression's document<br>
+     * the previous expression is the string before this expression's, until the previous space in the text
+     * @return Expression of the preview expression, if exist. if not- empty expression
+     */
     public Expression getPrevExpression(){
         int start = this.startIndex;
         int end = this.endIndex;
@@ -94,6 +148,11 @@ public class Expression {
         return new Expression(startIndex, endIndex, expression, this.doc);
     }
 
+    /**
+     * Get the expression in the document<br>
+     * the next word is the string after this expression's space, until the next space in the text
+     * @return Expression of the next expression, if exist. if not- empty expression
+     */
     public Expression getNextWordExpression(){
         int start = this.startIndex;
         int end = this.endIndex;
@@ -123,7 +182,13 @@ public class Expression {
 
         return new Expression(startIndex, endIndex, nextExpression.toString(), this.doc);
     }
+    //endregion
 
+
+    /**
+     * add exp to the end of this expression, with separating space
+     * @param exp Expression you want to add to this
+     */
     public void join(Expression exp) {
         this.endIndex = exp.endIndex;
         StringBuilder expression = new StringBuilder(this.expression);
@@ -132,7 +197,7 @@ public class Expression {
     }
 
 
-
+    //region Object overrides
     @Override
     public String toString() {
         return expression;
@@ -152,8 +217,10 @@ public class Expression {
     public int hashCode() {
         return Objects.hash(startIndex, endIndex, expression);
     }
+    //endregion
 
-
+    //region build tables static functions
+    //the functions below responsible to build the tables and sets defined in their signature
     private static HashSet<String> buildDollarExpressions() {
         HashSet<String> dollarExpressions = new HashSet<>();
         dollarExpressions.add("$");
@@ -277,5 +344,5 @@ public class Expression {
         table.put("t", 1000000000000.0);
         return table;
     }
-
+    //endregion
 }

@@ -5,6 +5,9 @@ import javafx.beans.property.SimpleStringProperty;
 
 import java.util.Comparator;
 
+/**
+ * Holds a table entry for the dictionary table
+ */
 public class DictionaryEntry {
 
     public static Comparator<DictionaryEntry> comparator = Comparator.comparing(DictionaryEntry::getTerm);

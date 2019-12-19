@@ -20,6 +20,9 @@ import util.Configuration;
 import java.io.File;
 import java.io.IOException;
 
+/**
+ * Application Controller
+ */
 public class Controller {
 
 
@@ -108,11 +111,11 @@ public class Controller {
         long t0 = System.currentTimeMillis();
         parser.start();
         parser.awaitRead();
-        long readTime = System.currentTimeMillis() - t0;
+        long readTime = System.currentTimeMillis() - t0 / 60000;
         parser.awaitParse();
-        long parseTime = System.currentTimeMillis() - t0;
+        long parseTime = System.currentTimeMillis() - t0 / 60000;
         indexer.awaitIndex();
-        long indexTime = System.currentTimeMillis() - t0;
+        long indexTime = System.currentTimeMillis() - t0 / 60000;
         String message = "number of documents indexed: " + parser.getDocumentCount() + "\n" +
                 "number of unique terms identified: " + indexer.getTermCount() + "\n" +
                 "time to read the corpus: " + readTime +"\n" +
@@ -162,6 +165,7 @@ public class Controller {
         if (viewableDictionary.isEmpty())
             makeViewable();
 
+        // create TableView that will contain the dictionary
         TableView<DictionaryEntry> dictionaryTable = new TableView<>();
 
         TableColumn termColumn = new TableColumn("term");
@@ -175,6 +179,7 @@ public class Controller {
         dictionaryTable.getColumns().addAll(termColumn, frequencyColumn);
         dictionaryTable.setItems(viewableDictionary);
 
+        // create the new windows stage and scene
         Stage dictionaryStage = new Stage();
         StackPane root = new StackPane();
         root.setPadding(new Insets(10));
@@ -186,6 +191,7 @@ public class Controller {
         dictionaryStage.show();
     }
 
+    // creates a sorted view of the dictionary.
     private void makeViewable() {
         for (Term term : dictionary.getTerms())
             viewableDictionary.add(new DictionaryEntry(term.term, term.termFrequency));
@@ -193,7 +199,7 @@ public class Controller {
         viewableDictionary.sort(DictionaryEntry.comparator);
     }
 
-
+    // shows alert with given text and message
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setHeaderText(title);

@@ -41,12 +41,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class DocumentMap {
 
-    private static final String PATH = Configuration.getInstance().getDocumentMapPath();
-
     // provides synchronization for writing to the document map file
     private static final Object fileMonitor = new Object();
 
-    //TODO: optimize these values.
     private static final int LOADED_MAP_SIZE = 1024;
     private static final float LOAD_FACTOR = 0.75f;
 
@@ -75,7 +72,7 @@ public final class DocumentMap {
             if (!mapFile.exists())
                 mapFile.mkdirs();
 
-            this.fileWriter = new BufferedWriter(new FileWriter(PATH));
+            this.fileWriter = new BufferedWriter(new FileWriter(getPath()));
         }
         catch (IOException e) {
             Logger.getInstance().error(e);
@@ -154,7 +151,7 @@ public final class DocumentMap {
      */
     public void clear() throws IOException {
         documents.clear();
-        Files.deleteIfExists(Paths.get(PATH));
+        Files.deleteIfExists(Paths.get(getPath()));
     }
 
     /**
@@ -167,7 +164,7 @@ public final class DocumentMap {
     public static DocumentMap loadDocumentMap() throws IOException {
         List<String> lines;
         synchronized (fileMonitor) {
-            lines = Files.readAllLines(Paths.get(PATH));
+            lines = Files.readAllLines(Paths.get(getPath()));
         }
         DocumentMap res = new DocumentMap(MODE.LOOKUP, lines.size(), LOAD_FACTOR);
 
@@ -204,6 +201,10 @@ public final class DocumentMap {
         finally {
             indexer.IOTasks.complete();
         }
+    }
+
+    private static String getPath() {
+        return Configuration.getInstance().getDocumentMapPath();
     }
 
     /**

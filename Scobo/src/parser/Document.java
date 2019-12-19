@@ -2,37 +2,41 @@ package parser;
 
 import java.util.HashMap;
 
+/**
+ * Holds the information of a document including numbers, terms, and entities
+ */
 public class Document {
 
     public String name;
+    public HashMap<String, Integer> numbers;
     public HashMap<String, Integer> terms;
-    public HashMap<String, Integer> words;
     public HashMap<String, Integer> entities;
     public int maxFrequency;
     public int length;
 
     public Document(String name) {
         this.name = name;
-        this.terms = new HashMap<>();
+        this.numbers = new HashMap<>();
         this.entities = new HashMap<>();
-        this.words = new HashMap<>();
+        this.terms = new HashMap<>();
         this.maxFrequency = 1;
         this.length = -1;
     }
 
-    public void addTerm(String term) {
+    public void addNumber(String term) {
         length++;
-        terms.compute(term, this::computeAdd);
+        numbers.compute(term, this::computeAdd);
     }
 
-    public void addWord(String word) {
+    public void addTerm(String word) {
         if (isWordNumber(word))
             return;
         if (word.length() < 2) return;
         length++;
-        words.compute(word, this::computeAdd);
+        terms.compute(word, this::computeAdd);
     }
 
+    // check to see if the word is a number with a postfix like 10m or 10M.
     private boolean isWordNumber(String word) {
         if (word.length() < 2)
             return false;

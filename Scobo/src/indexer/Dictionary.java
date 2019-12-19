@@ -21,22 +21,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * each line will look like so: [term]|[document frequency]|[posting file]\n
  * <ul>
  *     <li>term - string representation of the term</li>
+ *     <li>term frequency - number of times the term appears in the corpus</li>
  *     <li>document frequency - number of documents the term appears in</li>
- *     <li>posting file - index of the posting file this terms posting appears in</li>
+ *     <li>posting pointer - index of the posting file this terms posting appears in</li>
  * </ul>
  *
  */
 public final class Dictionary {
 
-    private static final String PATH = Configuration.getInstance().getDictionaryPath();
-
+    // monitor to handle synchronization of adding terms
     private static final Object termMonitor = new Object();
+    // monitor to handle synchronization of adding entities
     private static final Object entityMonitor = new Object();
 
     private static final int TERM_COUNT = 2097152; // 2^21
     private static final float LOAD_FACTOR = 0.75f; // termCount * loadFactor = 1,572,864 (max size before rehash)
     private static final int CONCURRENCY_LEVEL = Runtime.getRuntime().availableProcessors();
 
+    // maps terms to their Term instance
     private Map<String, Term> dictionary;
 
     // maps entity to its term frequency.
@@ -234,7 +236,7 @@ public final class Dictionary {
      */
     public void save()  {
         try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter(PATH));
+            BufferedWriter writer = new BufferedWriter(new FileWriter(getPath()));
             for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
                 Term term = entry.getValue();
                 writer.append(entry.getKey()).append("|");
@@ -258,7 +260,7 @@ public final class Dictionary {
     public void clear() throws IOException {
         dictionary.clear();
         entities.clear();
-        Files.deleteIfExists(Paths.get(PATH));
+        Files.deleteIfExists(Paths.get(getPath()));
     }
 
     /**
@@ -270,7 +272,7 @@ public final class Dictionary {
      */
     public synchronized static Dictionary loadDictionary() throws IOException {
         List<String> lines = null;
-        lines = Files.readAllLines(Paths.get(PATH));
+        lines = Files.readAllLines(Paths.get(getPath()));
 
         // concurrency level is set to 1 because the returned dictionary is should be immutable.
         Dictionary res = new Dictionary(lines.size(), LOAD_FACTOR, 1);
@@ -288,6 +290,10 @@ public final class Dictionary {
         }
 
         return res;
+    }
+
+    private static String getPath() {
+        return Configuration.getInstance().getDictionaryPath();
     }
 
 }
