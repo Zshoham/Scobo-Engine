@@ -2,11 +2,15 @@
 
 authors: shoham zarfati, hod twito
 
-This is out project for the course Information Retrieval 
+This is our project for the course Information Retrieval 
 
 ## User Guide
 
-after launching the application you will see a user interface that is split into two parts - Options in the upper area and actions in th lower area.
+To launch the application go to `Scobo/bin` there you will find runnable files for Linux and windows, to run the application on windows double click the `windows_runnable.sh` file, to run the application on Linux enter the command `./linux_runnable.sh`
+
+*note: in order to run the application on windows java 1.8.131 must be installed, on Linux newer java versions are supported only if javafx matching the java version is installed in `usr/share/openjfx/lib`*
+
+After launching the application you will see a user interface that is split into two parts - Options in the upper area and actions in th lower area.
 
 Options include :
 
