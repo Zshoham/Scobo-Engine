@@ -190,7 +190,7 @@ Runnable Class, handles the parsing process for a single document.
 * `private void handleSingleCapital(Expression word)` : 
   if word exist in low case, add as low case else- add as capital word
 
-### Parser
+### Parser Class
 
 Manages file reading from the corpus, and documents parsing.
 
