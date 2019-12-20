@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Objects;
 
 /**
- *
+ *  Represents an expression within the text of a document
  */
 public class Expression {
     //map all the months in the year to their numeric value

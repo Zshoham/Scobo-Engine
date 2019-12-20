@@ -2,6 +2,232 @@
 
 This document contains implementation level documentation for the engine. In order to get an overview of how the engine operates and how the classes described here operate together see the Architecture document.
 
+## Parser Package
+
+### Document Class
+
+Holds the information of a document including numbers, terms, and entities
+
+* `public Document(String name)` : Creates a new document with the given name (DOCNO).
+* `public void addNumber(String term)` : Adds a number term to the document.
+* `public void addTerm(String word)` : Adds a non number or entity term to the document.
+* `private boolean isWordNumber(String word)` : 
+  check to see if the word is a number with a postfix like 10m or 10M.
+* `public void addEntity(String entity)` : Adds an entity term to the document.
+* `private Integer computeAdd(String term, Integer frequency)` : 
+  function used to add a term to one of the maps.
+
+### Expression Class
+
+Represents an expression within the text of a document
+
+* `public Expression(int startIndex, int endIndex, String expression, String doc)` :
+  Creates expression with the given indexes in the doc and the string itself.
+* `public Expression()` : Creates empty expression.
+* Getters for the expressions fields :
+  * `public int getStartIndex()`
+  * `public int getEndIndex()`
+  * `public String getExpression()`
+  * `public String getDoc()`
+* `public boolean isPercentExpression()` :check if expression is a percent expression
+   legitimate percent expressions are: 
+  - $
+  - percent
+  - percentage
+* `public boolean isMonthExpression()` :
+  check if expression is a percent expression
+  legitimate percent expressions is defined by the month table built in the static function `buildMonthTable()`
+* `public boolean isDollarExpression()` : 
+  check if expression is a dollar expression
+  legitimate dollar expressions is defined by the dollar table built in the static function `buildDollarTable()`
+* `public boolean isPostfixExpression()` :
+  check if expression is a postfix expression
+  legitimate postfix expressions is defined by the numbers postfixes table built in the static function `buildPostfixTable()`
+* `public boolean isWeightExpression()` : 
+  check if expression is weight expression
+  legitimate weight expressions are defined by the weight table built in the static function `buildWeightTable()`
+* `public boolean isDistanceExpression()` :
+  check if expression is distance expression
+  legitimate distance expressions are defined by the distance table built in the static function `buildDistanceTable()`
+* `public Expression getNextExpression()` :
+  Get the next expression in the document
+  the next expression is the string after this expression's space, until the next space in the text
+* `public Expression getPrevExpression()` :
+  Get the previous expression in the expression's document  the previous expression is the string before this expression's, until the previous space in the text.
+* `public Expression getNextWordExpression()` :
+  Get the expression in the document
+  the next word is the string after this expression's space, until the next space in the text
+* `public void join(Expression exp)` : add exp to the end of this expression, with separating space
+* `public String toString()` : gets String representation of the expression.
+* `public int hashCode()`: gets hash code of the expression.
+* Static functions to build the various tables :
+  * `private static HashSet<String> buildDollarExpressions()`
+  * `private static HashMap<String, String> buildMonthTable()`
+  * `private static HashSet<Character> buildStoppingCharsTable()`
+  * `private static HashMap<String, Double> buildNumbersPostfixTable()`
+  * `private static HashMap<String, String> buildDistanceTable()`
+  * `private static HashMap<String, String> buildWightTable()`
+
+
+
+### NumberExpression Class
+
+Extension of the Expression class 
+holds also the numeric value of the number
+
+* `public NumberExpression(int startIndex, int endIndex, String expression, String doc)` :
+  Creates a number expression with given indexes in the doc and the string itself
+* `public NumberExpression(Expression expression)` : 
+  Creates number expression from generic expression.
+* `public double getValue()` : returns the value of the number expression.
+* `protected boolean isPartOfMixedNumber()` :
+  Check if number is part of mixed number mixed number is: number numerator/denominator
+* `protected boolean isNumerator()` :
+  Check if number is the numerator of a mixed number expression
+* `protected boolean isDenominator()` : 
+  Check if number is the denominator of a mixed number expression
+* `protected boolean isFullNumberOfMixedNumber()` :
+  Check if number is the the full number part of a mixed number expression
+* `private double translateValue()` : translate the value of the numeric string to number
+* `public String toString()` : returns String representation of the expression.
+* `public static double translateValue(NumberExpression exp)` : 
+  Translate the numeric expression to true number value, in order to assign the value to the number expression object
+* `public static boolean isNumberExpression(Expression exp)` :
+  Check if Expression is numeric expression
+* `public static boolean isNumberExpression(String strExp)` :
+  Check if string is numeric expression
+* `public static NumberExpression createMixedNumber(NumberExpression numerator)` :
+  Join fullNumber (if exist), numerator and denominator to one mixed number expression
+  if no full number exist- only fraction, the number expression returned will be: 0 numerator/denominator
+* `public static String getNumberString(double number)` :
+  return string of the number expression, according to the rules- show only maximum three decimal numbers, if exist
+
+### Parse Class
+
+Runnable Class, handles the parsing process for a single document.
+
+* `protected Parse(String document, Parser parser)` : 
+  Creates instance of Parse for the given document.
+
+* `private String genDocName(String document)` : 
+  extracts document name from the document.
+
+* `public void run()` : Start the parsing on doc
+
+* `private void parseText(String text)` : Parse every paragraph in the document
+
+* `private void parseNumbers(NumberExpression numberExp)` : 
+  Parse numbers from the document.
+
+* `private void parseHyphenSeparatedExp(Expression exp)` : 
+  parse all the hyphen separated words or numbers.
+
+* `private void parseWords(Expression word, Matcher m)` : Parse every word in the document
+
+* `private boolean tryDate(NumberExpression numberExp)` : 
+  Check the date rules date is: 
+
+  - DD Month,   add as MM-DD
+  - Month DD,   add as MM-DD
+  - Month YYYY, add as YYYY-MM
+
+* `private boolean tryPercent(NumberExpression numberExp)` : 
+  Check percent rule legal percent term is: 
+
+  - Number%
+  - Number percent
+  - Number percentage
+
+   If number following this rules, it is added to the dictionary as number%
+
+* `private boolean tryWight(NumberExpression numberExp)` :
+  Check weight rule legal distance term is: number[wight postfix] where wight postfix is one of the following: {kg, KG, Kg, g, G, mg, MG}  If the number follows this rule, it is added to the dictionary as number[lowercase postfix]
+
+* `private boolean tryDistance(NumberExpression numberExp)` : 
+  Check distance rule legal distance term is: number[distance postfix] where distance postfix is one of the following: {km, KM, Km, cm, CM, mm, MM}  If the number follows this rule, it is added to the dictionary as number[lowercase postfix]
+
+* `private boolean tryDollars(NumberExpression numberExp)` :
+  Check if number is part of price rules if number is below million the rules are: 
+
+  - price Dollars
+  - price frac Dollars
+  - $price
+
+   adds to the dictionary as number Dollar 
+   if number is above million the rules are: 
+
+  - price Dollars
+  - $price
+  - $price million
+  - $price billion
+  - price postfix dollars
+  - price million U.S. Dollars
+  - price billion U.S. Dollars
+  - price trillion U.S. Dollars
+
+   adds to the dictionary as number M Dollars
+
+* `private boolean tryPlainNumeric(NumberExpression numberExp)` :
+  Check if number is plain number, without any addition plain number is every string contains only numeric chars or ,/. with or without decimal point or fraction 
+   adds to the dictionary as: 
+
+  - if number is bellow 1000- as it appears
+  - if number is 1K <= number < 100000- as numberK
+  - if number is 1M <= number < 1bn- as numberM
+  - if number is 1bn <= number - as numberB
+
+   if the number has decimal point- adds to the dictionary with maximum 3 decimal numbers
+
+* `private boolean tryBetweenFirst(NumberExpression numberExp)` :
+  Check if number is part of bigger expression in the format
+  between number and number
+  If it is- add to the dictionary as as hyphen separated numbers : number-number
+* `private boolean tryCapitalLetters(Expression word, Matcher m)` :
+  Check if word first char is upper case If it is- add to the dictionary by the rules of capital letters words:
+  if exist in dictionary in low case- add in low case else- add whole word in capital letters check if the next word is also in capital, if it is, apply the same rule, and create an entity when the entity is big enough or the capital letters words are finished- add entity to dictionary.
+* `private void moveUpperToLower(String upperCaseWord)` :
+  check if low case word already added as capital word if it is- add as lower, and remove the capital.
+* `private void handleSingleCapital(Expression word)` : 
+  if word exist in low case, add as low case else- add as capital word
+
+### Parser
+
+Manages file reading from the corpus, and documents parsing.
+
+* `public Parser(String path, Indexer indexer)` :
+  Constructor for the parser object, initialize the task groups, give values to the parser elements, loads the stop words list 
+* `private void loadStopWords(String path)` :
+  loads the stop words list- all the words to ignore from
+* `boolean isStopWord(String word)` :  check if given word is stop word
+* `String stemWord(String word)` : 
+  If configured to stem- stem a given word otherwise, return the same word.
+* `void onFinishedParse(Document document)` : notify the parser that document parse is finished
+* `public void start()` : 
+  Start the files reading and documents parsing and start new thread to wait until parsing is done.
+* `private void finish()` : What to do when the parsing process is done
+* `public void awaitRead()` : Wait until finished reading all the corpus files
+* `public void awaitParse()` : Wait until parsing is done
+* `public int getDocumentCount()` : return the number of documents parsed.
+* `int getBatchSize()` :  return the batch size configured for the parser.
+
+### ReadFile Class
+
+Manages the reading and separating of files into documents
+
+* `protected ReadFile(String, Parser parser)` : 
+  Creates a readfile that will read from the specified path and is associated with the given parser.
+* `private void read(String[] batch, int start, int end) ` : 
+  Reads a batch of files from 'batch',  start reading from the 'start' index of batch up to the 'end' index.
+* `private void separate(byte[][] batch)` : 
+  Separates the given files into documents, the files are given as an array of byte arrays where each byte array represents a files bytes.
+
+### Stemmer
+
+This Class is the Porter Stemmer taken from : https://tartarus.org/martin/PorterStemmer/java.txt
+
+For detailed documentation on how the stemmer works visit :
+ https://snowball.tartarus.org/algorightms/proter/stemmer.html
+
 ## Indexer Package
 
 ### Dictionary Class

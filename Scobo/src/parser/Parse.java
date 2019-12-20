@@ -3,6 +3,9 @@ package parser;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Runnable Class, handles the parsing process for a single document.
+ */
 class Parse implements Runnable {
 
 
@@ -378,7 +381,7 @@ class Parse implements Runnable {
     }
 
     /**
-     * if word exist in low case, add as low cas
+     * if word exist in low case, add as low case
      * else- add as capital word
      * @param word capital letters word
      */
