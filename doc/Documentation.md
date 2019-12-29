@@ -31,7 +31,7 @@ Represents an expression within the text of a document
   * `public String getDoc()`
 * `public boolean isPercentExpression()` :check if expression is a percent expression
    legitimate percent expressions are: 
-  - $
+  - %
   - percent
   - percentage
 * `public boolean isMonthExpression()` :
@@ -232,7 +232,7 @@ For detailed documentation on how the stemmer works visit :
 
 ### Dictionary Class
 
-Maps string representation of a term to a [`Term`](file:///home/shoham/Dev/Scobo-Engine/doc/JavaDoc/indexer/Term.html) instance holding the relevant term statistics and posting file pointer.  
+Maps string representation of a term to a `Term` instance holding the relevant term statistics and posting file pointer.  
 
 Dictionary file format: Each line in the file represents a single entry in the Dictionary, each line will look like so: [term]|[document frequency]|[posting file]\n 
 
@@ -254,11 +254,13 @@ Dictionary file format: Each line in the file represents a single entry in the D
 * `protected void addEntityFromDocument(String entity, int frequency)` :
   Adds the entity to the dictionary, if entity term was already contained its statistics will be updated, otherwise the entity will be added to the dictionary.
 * `private void addTerm(String term, int count, int frequency)` :
-  helper function to add any term to the dictionary. where count is the number of new documents the term appears in and frequency is the number of times the term appears in said documents
+  helper function to add a term to the dictionary. where frequency is the number of times the term appears in the new document.
 * `public Optional<Term> lookupTerm(String term)` : 
   Retrieves information about a term via a `Term` object
 * `Optional<Term> lookupEntity(String term)` : 
   Retrieves information about an entity via a `Term` object
+* `boolean isEntity(String entity) :`
+  returns true if the string is a valid entity, false otherwise.
 * `public boolean contains(String term)` : 
   returns true if the term exists in the dictionary, false otherwise.
 * `public int size()` : 
@@ -300,34 +302,51 @@ Maps document names to document ID's and generates said IDs. `DocumentMap` can b
 
 * `protected DocumentMap(Indexer indexer)` : 
   Creates a `DocumentMap` in ADD mode. This creates a *mutable* reference.
+  
 * `private DocumentMap(MODE mode, int mapSize, float loadFactor)` :
   private initialization constructor used by the package constructor and the external loadDocumentMap function.
+  
 * `protected int addDocument(Document document)` : Adds a document to the map, giving it a unique ID.
+
 * `public Optional<DocumentMapping> lookup(int docID)` : 
   Gets the document mapping of the given document ID.
+  
+* `void updateEntity(String termPostingStr)` :
+  Parses the term posting string and updates all the documents that the entity appears in. If the entities frequency is high enough in some document it will entered into the list of most dominant entries in the document.
+  
 * `void dumpNow()` : dumps the document map into the document map file.
+
 * `public void clear() throws IOException` :
   Removes all of the document mappings from the map, and deletes the document map file.
+  
 * `public static DocumentMap loadDocumentMap() throws IOException` :
   Loads the document map in LOOKUP mode into memory and returns a reference to it.
+  
 * `private static void queueDump(Indexer indexer, 
   Map<Integer, DocumentMapping> documents, 
   BufferedWriter writer)` :
   queues an IO task for dumping the new document mappings to the file.
+  
 * `private static void dump(Indexer indexer, `
   `Map<Integer, DocumentMapping> documents, `
   `BufferedWriter writer)` : 
   Writes the newly added mappings to the file according to the file format specified in the class documentation.
+  
 * `private static String getPath()` : 
   returns the path to the dictionary file as specified by Configuration.
+  
+* `DocumentMapping` Class
 
-### DocumentMapping Class
+  Holds the data of the documents mapping: 
 
-Holds the data of the documents mapping: 
+  - `name` - the name of the document (DOCNO)
+  - `maxFrequency` - frequency of the term or entity that is most frequent in the document
+  - `length` - number of terms or entities that appear the document (not unique)
+  - `dominantEntities` - list of the most dominant entities in the document.
+  - `void updateEntity(String entity, int frequency)` :
+    Updates the `dominantEntities` list with a new entity and its frequency.
 
-- name - the name of the document (DOCNO)
-- maxFrequency - frequency of the term or entity that is most frequent in the document
-- length - number of terms or entities that appear the document (not unique)
+
 
 ### Indexer Class
 
@@ -337,8 +356,6 @@ Manages the indexing of the documents produced by the `Parser`
 
 - first a batch of documents is taken from the parser and then is inverted into into term -> document mappings and then those mappings are written into a single posting file.     
 - after all the documents have been inverted they are all merged into a single inverted file where each line is a term -> documents mapping during this process a `Dictionary` and`DocumentMap`are created     in order to later retrieve information from the inverted file.
-
-
 
 * `public void onFinishParser()` : 
   Callback meant to be used by the parser to notify the indexer that the last of the documents has been parsed and the indexer can now start entering it's second phase.

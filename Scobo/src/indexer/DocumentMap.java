@@ -130,6 +130,25 @@ public final class DocumentMap {
     }
 
     /**
+     * Parses the term posting string and updates all the
+     * documents that the entity appears in.
+     * If the entities frequency is high enough in some document
+     * it will entered into the list of most dominant entries in the document.
+     *
+     * @param termPostingStr string representation of the term posting.
+     */
+    void updateEntity(String termPostingStr) {
+        String[] postingContent = termPostingStr.split("\\|,");
+        String entity = postingContent[0];
+        int index = 1;
+        while (index < postingContent.length) {
+            int docID = Integer.parseInt(postingContent[index++]);
+            int frequency = Integer.parseInt(postingContent[index++]);
+            documents.get(docID).updateEntity(entity, frequency);
+        }
+    }
+
+    /**
      * dumps the document map into the document map file.
      */
     void dumpNow() {
@@ -215,17 +234,23 @@ public final class DocumentMap {
      *     <li>length - number of terms or entities that appear the document (not unique)</li>
      * </ul>
      */
-    public static class DocumentMapping {
+    private static class DocumentMapping {
+
+        private static final int DOMINANT_ENTITIES_COUNT = 5;
 
         public String name;
 
         public int maxFrequency;
         public int length;
+        public ArrayList<Map.Entry<String, Integer>> dominantEntities;
+        private Map.Entry<String, Integer> minEntity;
 
         public DocumentMapping(Document document) {
             this.name = document.name;
             this.maxFrequency = document.maxFrequency;
             this.length = document.length;
+            this.dominantEntities = new ArrayList<>();
+            minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
         }
 
         public DocumentMapping(String strMapping) {
@@ -236,6 +261,30 @@ public final class DocumentMap {
             this.name = contents[0];
             this.maxFrequency = Integer.parseInt(contents[1]);
             this.length = Integer.parseInt(contents[2]);
+        }
+
+        //updates the dominantEntities list with a new entity and its frequency.
+        void updateEntity(String entity, int frequency) {
+            Map.Entry<String, Integer> newEntry = new HashMap.SimpleEntry<>(entity, frequency);
+            // if the entity list is still not full
+            // add the new entity to the list and update the min entity.
+            if (dominantEntities.size() < DOMINANT_ENTITIES_COUNT) {
+                dominantEntities.add(newEntry);
+                if (frequency < minEntity.getValue())
+                    minEntity = newEntry;
+            }
+            else {
+                // otherwise remove the min entity, add the new entity
+                // and find the new min entity.
+                if (frequency < minEntity.getValue()) return;
+                dominantEntities.remove(minEntity);
+                dominantEntities.add(newEntry);
+                minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
+                for (int i = 0; i < dominantEntities.size(); i++) {
+                    if (dominantEntities.get(i).getValue() < minEntity.getValue())
+                        minEntity = dominantEntities.get(i);
+                }
+            }
         }
 
         @Override

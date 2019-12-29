@@ -73,7 +73,7 @@ public class Indexer {
         IOTasks.closeGroup();
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
-        PostingCache.merge(dictionary);
+        PostingCache.merge(dictionary, documentMap);
         this.termCount = dictionary.size();
         dictionary.save();
         documentMap.dumpNow();

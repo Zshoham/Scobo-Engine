@@ -91,7 +91,7 @@ public final class PostingCache {
      * @param dictionary the dictionary that will map into the newly created
      *                   inverted file.
      */
-    static void merge(Dictionary dictionary) {
+    static void merge(Dictionary dictionary, DocumentMap documentMap) {
         try {
             int postingFileCount = runningID.get();
             BufferedWriter invertedFileWriter = new BufferedWriter(new FileWriter(getInvertedFilePath()));
@@ -115,7 +115,7 @@ public final class PostingCache {
                 //reset number of null readers.
                 countNull = 0;
 
-                //foreach reader
+                //for each reader
                 for (int i = 0; i < postingFileCount; i++) {
                     if (isFirstRead) {
                         // initialize the reader if this is the first read.
@@ -147,15 +147,15 @@ public final class PostingCache {
 
                 // merge all the min lines from the files into one line and read the next line.
                 int firstMinLine = minLines.removeFirst();
-                StringBuilder docsStr = new StringBuilder(lines.get(firstMinLine));
+                StringBuilder termPostingStr = new StringBuilder(lines.get(firstMinLine));
                 for (int line : minLines) {
                     String lineStr = lines.get(line); // line of the format t(|d,f)+
-                    docsStr.append(lineStr.substring(lineStr.indexOf("|"))); // get only the (|d,f)+ part
+                    termPostingStr.append(lineStr.substring(lineStr.indexOf("|"))); // get only the (|d,f)+ part
                     lines.set(line, postingReaders[line].readLine()); // read the next line
                 }
                 lines.set(firstMinLine, postingReaders[firstMinLine].readLine());
-                docsStr.append("\n"); // append line ending.
-                invertedFileWriter.append(docsStr); // write the merged line.
+                termPostingStr.append("\n"); // append line ending.
+                invertedFileWriter.append(termPostingStr); // write the merged line.
 
                 // get term for minTerm from dictionary.
                 Optional<Term> optionalTerm = dictionary.lookupTerm(minTerm);
@@ -164,7 +164,8 @@ public final class PostingCache {
 
                 // update pointer.
                 optionalTerm.get().pointer = lineNumber;
-
+                if(dictionary.isEntity(minTerm))
+                    documentMap.updateEntity(termPostingStr.toString());
                 minLines.clear();
                 lineNumber++;
             }

@@ -51,7 +51,7 @@ public class Expression {
      * check if expression is a percent expression<br>
      * legitimate percent expressions are:
      * <ul>
-     *     <li>$</li>
+     *     <li>%</li>
      *     <li>percent</li>
      *     <li>percentage</li>
      * </ul>
@@ -60,6 +60,7 @@ public class Expression {
     public boolean isPercentExpression(){
         return expression.equals("%") || expression.equals("percent") || expression.equals("percentage");
     }
+
     /**
      * check if expression is a percent expression<br>
      * legitimate percent expressions is defined by the month table
@@ -69,6 +70,7 @@ public class Expression {
     public boolean isMonthExpression(){
         return monthTable.containsKey(expression);
     }
+
     /**
      * check if expression is a dollar expression<br>
      * legitimate dollar expressions is defined by the dollar table
@@ -81,6 +83,7 @@ public class Expression {
             exp += " " + this.getNextExpression().expression;
         return dollarExpressions.contains(exp);
     }
+
     /**
      * check if expression is a postfix expression<br>
      * legitimate postfix expressions is defined by the numbers postfixes table
@@ -100,12 +103,14 @@ public class Expression {
     public boolean isWeightExpression(){
         return wightTable.containsKey(this.expression);
     }
+
     /**
      * check if expression is distance expression<br>
      * legitimate distance expressions are defined by the distance table
      * built in the static function {@link #buildDistanceTable()} ()}
      * @return true if expression is legitimate distance
-     */    public boolean isDistanceExpression(){
+     */
+    public boolean isDistanceExpression(){
         return distanceTable.containsKey(this.expression);
     }
 
@@ -254,6 +259,7 @@ public class Expression {
         dollarExpressions.add("u.s. dollars");
         return dollarExpressions;
     }
+
     private static HashMap<String, String> buildMonthTable() {
         HashMap<String, String> res = new HashMap<>();
 
@@ -313,6 +319,7 @@ public class Expression {
 
         return res;
     }
+
     private static HashSet<Character> buildStoppingCharsTable() {
         HashSet<Character> stoppingCharsTable = new HashSet<>();
 
@@ -335,6 +342,7 @@ public class Expression {
 
         return stoppingCharsTable;
     }
+
     private static HashMap<String, Double> buildNumbersPostfixTable(){
         HashMap<String, Double> table = new HashMap<>();
 
@@ -366,6 +374,7 @@ public class Expression {
         table.put("t", 1000000000000.0);
         return table;
     }
+
     private static HashMap<String, String> buildDistanceTable() {
         HashMap<String, String> table = new HashMap<>();
 
@@ -381,6 +390,7 @@ public class Expression {
 
         return table;
     }
+
     private static HashMap<String, String> buildWightTable() {
         HashMap<String, String> table = new HashMap<>();
 

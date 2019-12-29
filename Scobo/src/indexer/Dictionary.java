@@ -44,6 +44,9 @@ public final class Dictionary {
     // maps terms to their Term instance
     private Map<String, Term> dictionary;
 
+    //maps entity terms to their Term instance
+    private Map<String, Term> entityDictionary;
+
     // maps entity to its term frequency.
     private Map<String, Integer> entities;
 
@@ -54,11 +57,12 @@ public final class Dictionary {
      */
     protected Dictionary() {
         this(TERM_COUNT, LOAD_FACTOR, CONCURRENCY_LEVEL);
+        entityDictionary = new ConcurrentHashMap<>(TERM_COUNT, LOAD_FACTOR, CONCURRENCY_LEVEL);
+        entities = new ConcurrentHashMap<>(TERM_COUNT, LOAD_FACTOR, CONCURRENCY_LEVEL);
     }
 
     private Dictionary(final int termCount, final float loadFactor, final int concurrencyLevel) {
         dictionary = new ConcurrentHashMap<>(termCount, loadFactor, concurrencyLevel);
-        entities = new ConcurrentHashMap<>(termCount / 2, loadFactor, concurrencyLevel);
     }
 
 
@@ -71,7 +75,7 @@ public final class Dictionary {
      * @param frequency the frequency of the number in the document.
      */
     protected void addNumberFromDocument(String number, int frequency) {
-        addTerm(number, 1, frequency);
+        addTerm(number, frequency);
     }
 
     /**
@@ -102,7 +106,7 @@ public final class Dictionary {
         boolean isUpperCase = Character.isUpperCase(term.charAt(0));
 
         if (upperCaseTerm.equals(lowerCaseTerm)) {
-            addTerm(lowerCaseTerm, 1, frequency);
+            addTerm(lowerCaseTerm, frequency);
             return;
         }
 
@@ -117,7 +121,7 @@ public final class Dictionary {
             if (isPresent.get())
                 return;
 
-            addTerm(upperCaseTerm, 1, frequency);
+            addTerm(upperCaseTerm, frequency);
             return;
         }
 
@@ -132,7 +136,7 @@ public final class Dictionary {
             }
         }
 
-        addTerm(lowerCaseTerm, 1, frequency);
+        addTerm(lowerCaseTerm, frequency);
     }
 
     /**
@@ -153,7 +157,7 @@ public final class Dictionary {
         // add to entities
 
         AtomicBoolean isPresent = new AtomicBoolean(false);
-        dictionary.computeIfPresent(entity, (key, value) -> {
+        entityDictionary.computeIfPresent(entity, (key, value) -> {
             isPresent.set(true);
             value.termDocumentFrequency++;
             value.termFrequency += frequency;
@@ -165,7 +169,11 @@ public final class Dictionary {
         synchronized (entityMonitor) {
             if (entities.containsKey(entity)) {
                 int count = entities.remove(entity);
-                addTerm(entity, 2, count + frequency);
+                entityDictionary.merge(entity, new Term(entity, frequency, count, -1), (dictValue, newValue) -> {
+                    dictValue.termDocumentFrequency += count;
+                    dictValue.termFrequency += frequency;
+                    return dictValue;
+                });
                 return;
             }
         }
@@ -174,15 +182,14 @@ public final class Dictionary {
     }
 
     /*
-    helper function to add any term to the dictionary.
-    where count is the number of new documents the term
-    appears in and frequency is the number of times the term
-    appears in said documents
+    helper function to add a term to the dictionary.
+    where frequency is the number of times the term
+    appears in the new document.
      */
-    private void addTerm(String term, int count, int frequency) {
+    private void addTerm(String term, int frequency) {
         // compute the terms mapping.
-        dictionary.merge(term, new Term(term, frequency, count, -1), (dictValue, newValue) -> {
-            dictValue.termDocumentFrequency += count;
+        dictionary.merge(term, new Term(term, frequency, 1, -1), (dictValue, newValue) -> {
+            dictValue.termDocumentFrequency += 1;
             dictValue.termFrequency += frequency;
             return dictValue;
         });
@@ -196,6 +203,7 @@ public final class Dictionary {
      *          term was not yet added to the dictionary or added with a null mapping.
      */
     public Optional<Term> lookupTerm(String term) {
+        //TODO: fix bad design.
         if (term.contains("dollars")) {
             term = term.replace("dollars", "Dollars");
             term = term.replace("m", "M");
@@ -222,15 +230,15 @@ public final class Dictionary {
      *          term was not yet added to the dictionary or added with a null mapping.
      */
     Optional<Term> lookupEntity(String entity) {
-        return Optional.ofNullable(dictionary.get(entity));
+        return Optional.ofNullable(entityDictionary.get(entity));
     }
 
     /**
-     * @param term string representation of the term
-     * @return true if the term exists in the dictionary, false otherwise.
+     * @param entity potential entity.
+     * @return true if the string is a valid entity, false otherwise.
      */
-    public boolean contains(String term) {
-        return dictionary.containsKey(term);
+    boolean isEntity(String entity) {
+        return entityDictionary.containsKey(entity);
     }
 
     /**
@@ -257,17 +265,24 @@ public final class Dictionary {
     public void save()  {
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(getPath()));
-            for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
-                Term term = entry.getValue();
-                writer.append(entry.getKey()).append("|");
-                writer.append(String.valueOf(term.termFrequency)).append("|");
-                writer.append(String.valueOf(term.termDocumentFrequency)).append("|");
-                writer.append(String.valueOf(term.pointer)).append("\n");
-            }
+
+            saveDictionary(this.dictionary, writer);
+            if (entityDictionary != null)
+                saveDictionary(entityDictionary, writer);
 
             writer.close();
         } catch (IOException e) {
             Logger.getInstance().error(e);
+        }
+    }
+
+    private static void saveDictionary(Map<String, Term> dictionary, BufferedWriter writer) throws IOException {
+        for (Map.Entry<String, Term> entry : dictionary.entrySet()) {
+            Term term = entry.getValue();
+            writer.append(entry.getKey()).append("|");
+            writer.append(String.valueOf(term.termFrequency)).append("|");
+            writer.append(String.valueOf(term.termDocumentFrequency)).append("|");
+            writer.append(String.valueOf(term.pointer)).append("\n");
         }
     }
 
@@ -291,8 +306,7 @@ public final class Dictionary {
      * @throws IOException if the dictionary file is corrupted or not found.
      */
     public synchronized static Dictionary loadDictionary() throws IOException {
-        List<String> lines = null;
-        lines = Files.readAllLines(Paths.get(getPath()));
+        List<String> lines = Files.readAllLines(Paths.get(getPath()));
 
         // concurrency level is set to 1 because the returned dictionary is should be immutable.
         Dictionary res = new Dictionary(lines.size(), LOAD_FACTOR, 1);
