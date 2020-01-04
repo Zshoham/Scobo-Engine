@@ -267,7 +267,7 @@ Dictionary file format: Each line in the file represents a single entry in the D
   Returns the number of key-value mappings in this map.  If the map contains more than `Integer.MAX_VALUE` elements, returns `Integer.MAX_VALUE`.
 * `public Collection<Term> getTerms()` :
   returns Collection of all the terms in the dictionary.
-* `public void save()` :
+* `void save()` :
   Saves the `Dictionary` to the directory specified by`Configuration`.
 * `public void clear() throws IOException` :
   Removes all of the entries from the dictionary, and deletes the dictionary file.
@@ -286,27 +286,22 @@ Represents a buffer of documents that builds up until a term limit is reached (o
 
 ### DocumentMap Class
 
-Maps document names to document ID's and generates said IDs. `DocumentMap` can be in one of two modes: 
+Maps document IDs to document data and generates said IDs.
 
-- ADD mode - meant to be used internally by the indexer, when in ADD mode it is possible to add documents to the map and receive their IDs 
-- LOOKUP mode - is meant to be used externally after indexing, when LOOKUP mode it is impossible to add new documents but looking up document names by ID is available
-
- The distinction between the modes is made because while indexing there is no need to be able to lookup documents after adding them, hence when in ADD mode after reaching a certain threshold the documents added to the map will be saved to the map file. While in LOOKUP all the mappings are available in memory and thus it is possible to preform lookups for any document.  
-
- Document Map file format: Each line in the file represents a document ID -> document data mapping each line line will look like so: [document ID]|[(document data)]\n 
+Document Map file format: Each line in the file represents a document ID -> document data mapping. each line line will look like so: [document ID]|[(document data)]\n 
 
 - document ID - id given to the document by the map
-- document data - csv  data about the document including document name 
+- document data - csv data about the document including document name 
 
 *`DocumentMap` is externally immutable meaning that it is immutable outside of the scope of its package (indexer)*  
 
 * `protected DocumentMap(Indexer indexer)` : 
   Creates a `DocumentMap` in ADD mode. This creates a *mutable* reference.
   
-* `private DocumentMap(MODE mode, int mapSize, float loadFactor)` :
-  private initialization constructor used by the package constructor and the external loadDocumentMap function.
+* `private DocumentMap(int mapSize, float loadFactor)` :
+  private initialization constructor used by the package constructor and the external `loadDocumentMap` function.
   
-* `protected int addDocument(Document document)` : Adds a document to the map, giving it a unique ID.
+* `int addDocument(Document document)` : Adds a document to the map, giving it a unique ID.
 
 * `public Optional<DocumentMapping> lookup(int docID)` : 
   Gets the document mapping of the given document ID.
@@ -314,23 +309,13 @@ Maps document names to document ID's and generates said IDs. `DocumentMap` can b
 * `void updateEntity(String termPostingStr)` :
   Parses the term posting string and updates all the documents that the entity appears in. If the entities frequency is high enough in some document it will entered into the list of most dominant entries in the document.
   
-* `void dumpNow()` : dumps the document map into the document map file.
+* `void save()` : saves the document map into the document map file.
 
 * `public void clear() throws IOException` :
   Removes all of the document mappings from the map, and deletes the document map file.
   
 * `public static DocumentMap loadDocumentMap() throws IOException` :
   Loads the document map in LOOKUP mode into memory and returns a reference to it.
-  
-* `private static void queueDump(Indexer indexer, 
-  Map<Integer, DocumentMapping> documents, 
-  BufferedWriter writer)` :
-  queues an IO task for dumping the new document mappings to the file.
-  
-* `private static void dump(Indexer indexer, `
-  `Map<Integer, DocumentMapping> documents, `
-  `BufferedWriter writer)` : 
-  Writes the newly added mappings to the file according to the file format specified in the class documentation.
   
 * `private static String getPath()` : 
   returns the path to the dictionary file as specified by Configuration.
@@ -343,7 +328,7 @@ Maps document names to document ID's and generates said IDs. `DocumentMap` can b
   - `maxFrequency` - frequency of the term or entity that is most frequent in the document
   - `length` - number of terms or entities that appear the document (not unique)
   - `dominantEntities` - list of the most dominant entities in the document.
-  - `void updateEntity(String entity, int frequency)` :
+  - `synchronized void updateEntity(String entity, int frequency)` :
     Updates the `dominantEntities` list with a new entity and its frequency.
 
 
@@ -658,7 +643,7 @@ Encapsulates a group of tasks in order to be able to reason about them as one un
   for example if there was a delay in adding tasks and tasks 1,2,3 were completed before task 4 could be added to the group. When using Task Group take care to have a clear batch of tasks that can be executed. 
   In order to be assured this issue does not arise use `openGroup()`
 
-  ### TaskManager Class
+### TaskManager Class
 
 Simple task manager, servers as basically a wrapper for Executor service. This class implements the singleton pattern, in order to attain an instance use `getInstance()`.
 

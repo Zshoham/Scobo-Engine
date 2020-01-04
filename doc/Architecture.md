@@ -33,7 +33,7 @@ the dictionary holds mappings from terms to their statistics and a pointer to th
 
 The mappings are written to a file sorted alphabetically by the term string, such that each mapping is written in a new line with its document list. (below is an abstract representation of the process)
 
-![invert phase](/home/shoham/Dev/Scobo-Engine/doc/diagrams/invert phase.png)
+![invert phase](diagrams/invert phase.png)
 
 ### Merge Phase
 

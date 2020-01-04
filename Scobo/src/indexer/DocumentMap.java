@@ -12,27 +12,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Maps document names to document IDs and generates said IDs.
- * {@code DocumentMap} can be in one of two modes:
- * <ul>
- *     <li>ADD mode - meant to be used internally by the indexer, when in ADD mode
- *     it is possible to add documents to the map and receive their IDs </li>
- *     <li>LOOKUP mode - is meant to be used externally after indexing, when LOOKUP mode
- *     it is impossible to add new documents but looking up document names by ID is available</li>
- * </ul>
- *
- * <p> The distinction between the modes is made because while indexing there is no need to be able to
- * lookup documents after adding them, hence when in ADD mode after reaching a certain threshold the
- * documents added to the map will be saved to the map file.
- * While in LOOKUP all the mappings are available in memory and thus it is possible to preform lookups
- * for any document.
+ * Maps document IDs to document data and generates said IDs.
  *
  * <p> Document Map file format:
- * Each line in the file represents a document ID -> document data mapping
- * each line line will look like so: [document ID]|[(document data)]\n
+ * Each line in the file represents a document ID -> document data mapping.
+ * each line will look like so: [document ID]|[(document data)]\n
  * <ul>
  *     <li>document ID - id given to the document by the map</li>
- *     <li>document data - csv  data about the doc*`DocumentMap` is externally immutable meaning that it is immutable outside of the scope of its package (indexer)*  ument including document name </li>
+ *     <li>document data - csv data about the document including document name </li>
  * </ul>
  *
  * <p><em>{@code DocumentMap} is externally immutable meaning that it is immutable outside of
@@ -43,48 +30,31 @@ public final class DocumentMap {
     // provides synchronization for writing to the document map file
     private static final Object fileMonitor = new Object();
 
-    private static final int LOADED_MAP_SIZE = 1024;
+    private static final int MAP_SIZE = 524288;
     private static final float LOAD_FACTOR = 0.75f;
 
     private ConcurrentHashMap<Integer, DocumentMapping> documents;
-    private volatile AtomicInteger size;
     private volatile AtomicInteger runningID;
-    private BufferedWriter fileWriter;
-
-    private enum MODE {ADD, LOOKUP}
-    private MODE mode;
-
-    private Indexer indexer;
 
 
     /**
      * Creates a {@code DocumentMap} in ADD mode.
      * This creates a <em>mutable</em> reference.
      *
-     * @param indexer the indexer using this map.
      */
-    protected DocumentMap(Indexer indexer) {
-        this(MODE.ADD, LOADED_MAP_SIZE, LOAD_FACTOR);
+    protected DocumentMap() {
+        this(MAP_SIZE, LOAD_FACTOR);
 
-        try {
-            File mapFile = new File(Configuration.getInstance().getIndexPath());
-            if (!mapFile.exists())
-                mapFile.mkdirs();
+        File mapFile = new File(Configuration.getInstance().getIndexPath());
+        if (!mapFile.exists())
+            mapFile.mkdirs();
 
-            this.fileWriter = new BufferedWriter(new FileWriter(getPath()));
-        }
-        catch (IOException e) {
-            Logger.getInstance().error(e);
-        }
-        this.indexer = indexer;
-        this.size = new AtomicInteger(0);
         this.runningID = new AtomicInteger(0);
     }
 
     // private initialization constructor used by the package constructor and the
     // external loadDocumentMap function.
-    private DocumentMap(MODE mode, final int mapSize, final float loadFactor) {
-        this.mode = mode;
+    private DocumentMap(final int mapSize, final float loadFactor) {
         this.documents = new ConcurrentHashMap<>(mapSize, loadFactor, Runtime.getRuntime().availableProcessors());
     }
 
@@ -95,23 +65,9 @@ public final class DocumentMap {
      * @return a positive integer representing the docID, -1 if the Map is in LOOKUP mode
      * and cannot accept more documents.
      */
-    protected int addDocument(final Document document) {
-        if (mode == MODE.LOOKUP)
-            return -1;
-
+    int addDocument(final Document document) {
         int docID = runningID.getAndIncrement();
-
         documents.computeIfAbsent(docID, integer -> new DocumentMapping(document));
-
-        synchronized (this) {
-            if (size.get() >= LOADED_MAP_SIZE * LOAD_FACTOR) {
-                queueDump(indexer, documents, fileWriter);
-                this.documents = new ConcurrentHashMap<>(LOADED_MAP_SIZE, LOAD_FACTOR);
-                size.set(0);
-            }
-        }
-
-        size.incrementAndGet();
         return docID;
     }
 
@@ -123,9 +79,6 @@ public final class DocumentMap {
      * @return the document name associated with the given docID.
      */
     public Optional<DocumentMapping> lookup(int docID) {
-        if (mode == MODE.ADD)
-            return Optional.empty();
-
         return Optional.ofNullable(documents.get(docID));
     }
 
@@ -137,8 +90,8 @@ public final class DocumentMap {
      *
      * @param termPostingStr string representation of the term posting.
      */
-    void updateEntity(String termPostingStr) {
-        String[] postingContent = termPostingStr.split("\\|,");
+    void updateEntity(String termPostingStr, Runnable onComplete) {
+        String[] postingContent = termPostingStr.split("[|,]");
         String entity = postingContent[0];
         int index = 1;
         while (index < postingContent.length) {
@@ -146,18 +99,27 @@ public final class DocumentMap {
             int frequency = Integer.parseInt(postingContent[index++]);
             documents.get(docID).updateEntity(entity, frequency);
         }
+        onComplete.run();
     }
 
     /**
      * dumps the document map into the document map file.
      */
-    void dumpNow() {
-        dump(indexer, documents, fileWriter);
-        this.documents = new ConcurrentHashMap<>();
-        size.set(0);
-        try { this.fileWriter.close(); }
+    void save() {
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(getPath()));
+            StringBuilder fileDump = new StringBuilder();
+            for (Map.Entry<Integer, DocumentMapping> entry : documents.entrySet())
+                fileDump.append(entry.getKey()).append("|")
+                        .append(entry.getValue().toString()).append("\n");
+
+            synchronized (fileMonitor) {
+                writer.append(fileDump);
+                writer.close();
+            }
+        }
         catch (IOException e) {
-            Logger.getInstance().warn(e);
+            Logger.getInstance().error(e);
         }
     }
 
@@ -184,7 +146,7 @@ public final class DocumentMap {
         synchronized (fileMonitor) {
             lines = Files.readAllLines(Paths.get(getPath()));
         }
-        DocumentMap res = new DocumentMap(MODE.LOOKUP, lines.size(), LOAD_FACTOR);
+        DocumentMap res = new DocumentMap(lines.size(), LOAD_FACTOR);
 
         for (String line : lines) {
             int startOfMapping = line.indexOf("|");
@@ -193,32 +155,6 @@ public final class DocumentMap {
         }
 
         return res;
-    }
-
-    // queues an IO task for dumping the new document mappings to the file.
-    private static void queueDump(Indexer indexer, Map<Integer, DocumentMapping> documents, BufferedWriter writer) {
-        indexer.IOTasks.add(() -> dump(indexer, documents, writer));
-    }
-
-    // Writes the newly added mappings to the file according to the file format specified in the class
-    // documentation.
-    private static void dump(Indexer indexer, Map<Integer, DocumentMapping> documents, BufferedWriter writer) {
-        try {
-            StringBuilder fileDump = new StringBuilder();
-            for (Map.Entry<Integer, DocumentMapping> entry : documents.entrySet())
-                fileDump.append(entry.getKey()).append("|")
-                        .append(entry.getValue().toString()).append("\n");
-
-            synchronized (fileMonitor) {
-                writer.append(fileDump);
-                writer.flush();
-            }
-        } catch (IOException e) {
-            Logger.getInstance().error(e);
-        }
-        finally {
-            indexer.IOTasks.complete();
-        }
     }
 
     // returns the path to the dictionary file as specified by Configuration
@@ -232,6 +168,8 @@ public final class DocumentMap {
      *     <li>name - the name of the document (DOCNO)</li>
      *     <li>maxFrequency - frequency of the term or entity that is most frequent in the document</li>
      *     <li>length - number of terms or entities that appear the document (not unique)</li>
+     *     <li>dominant entities - list of up to {@code DOMINANT_ENTITIES_COUNT} pairs of entities and their
+     *     frequency in the document, the list represents the most common entities in the document.</li>
      * </ul>
      */
     private static class DocumentMapping {
@@ -239,7 +177,6 @@ public final class DocumentMap {
         private static final int DOMINANT_ENTITIES_COUNT = 5;
 
         public String name;
-
         public int maxFrequency;
         public int length;
         public ArrayList<Map.Entry<String, Integer>> dominantEntities;
@@ -249,22 +186,31 @@ public final class DocumentMap {
             this.name = document.name;
             this.maxFrequency = document.maxFrequency;
             this.length = document.length;
-            this.dominantEntities = new ArrayList<>();
+            this.dominantEntities = new ArrayList<>(5);
             minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
         }
 
         public DocumentMapping(String strMapping) {
             String[] contents = strMapping.split(",");
-            if (contents.length != 3)
+            if (contents.length < 3 || contents.length > 3 + (DOMINANT_ENTITIES_COUNT * 2))
                 throw new IllegalStateException("Document Map file is corrupted");
 
             this.name = contents[0];
             this.maxFrequency = Integer.parseInt(contents[1]);
             this.length = Integer.parseInt(contents[2]);
+            dominantEntities = new ArrayList<>(DOMINANT_ENTITIES_COUNT);
+            if (contents.length > 3){
+                int i = 3;
+                while (i < contents.length) {
+                    String entity = contents[i++];
+                    int frequency = Integer.parseInt(contents[i++]);
+                    dominantEntities.add(new HashMap.SimpleEntry<>(entity, frequency));
+                }
+            }
         }
 
         //updates the dominantEntities list with a new entity and its frequency.
-        void updateEntity(String entity, int frequency) {
+        synchronized void updateEntity(String entity, int frequency) {
             Map.Entry<String, Integer> newEntry = new HashMap.SimpleEntry<>(entity, frequency);
             // if the entity list is still not full
             // add the new entity to the list and update the min entity.
@@ -280,16 +226,23 @@ public final class DocumentMap {
                 dominantEntities.remove(minEntity);
                 dominantEntities.add(newEntry);
                 minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
-                for (int i = 0; i < dominantEntities.size(); i++) {
-                    if (dominantEntities.get(i).getValue() < minEntity.getValue())
-                        minEntity = dominantEntities.get(i);
+                for (Map.Entry<String, Integer> dominantEntity : dominantEntities) {
+                    if (dominantEntity.getValue() < minEntity.getValue())
+                        minEntity = dominantEntity;
                 }
             }
         }
 
         @Override
         public String toString() {
-            return name + "," + maxFrequency + "," + length;
+            StringBuilder res = new StringBuilder(name).append(",");
+            res.append(maxFrequency).append(",");
+            res.append(length);
+            synchronized (this) {
+                for (Map.Entry<String, Integer> entity: dominantEntities)
+                    res.append(",").append(entity.getKey()).append(",").append(entity.getValue());
+            }
+            return res.toString();
         }
     }
 }

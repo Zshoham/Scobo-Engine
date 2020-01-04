@@ -2,6 +2,8 @@ package indexer;
 
 import util.Configuration;
 import util.Logger;
+import util.TaskGroup;
+import util.TaskManager;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -108,6 +110,10 @@ public final class PostingCache {
             // the alphabetically minimal lines of the above lines.
             LinkedList<Integer> minLines = new LinkedList<>();
 
+            // create task group to execute the entity updates in parallel.
+            TaskGroup entityUpdate = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
+            entityUpdate.openGroup();
+
             // while there are readers who haven't finished reading their file.
             while (countNull < postingFileCount) {
                 //the minimal term of terms this iteration.
@@ -117,8 +123,7 @@ public final class PostingCache {
 
                 //for each reader
                 for (int i = 0; i < postingFileCount; i++) {
-                    if (isFirstRead) {
-                        // initialize the reader if this is the first read.
+                    if (isFirstRead) { // initialize the reader if this is the first read.
                         postingReaders[i] = new BufferedReader(new FileReader(getPostingFilePath(i)));
                         lines.add(i, postingReaders[i].readLine());
                     }
@@ -136,10 +141,10 @@ public final class PostingCache {
                         } else if (term.compareTo(minTerm) == 0) // we found a new term equal to the min.
                             minLines.addLast(i);
                     }
-                    else countNull++; // the reader couldn't read another line.
+                    else countNull++; // the reader couldn't read another line, meaning it finished reading it's file.
                 }
 
-                //if non of the readers read a new line we are finished.
+                // if non of the readers read a new line we are finished.
                 if (countNull >= postingFileCount)
                     break;
 
@@ -154,8 +159,6 @@ public final class PostingCache {
                     lines.set(line, postingReaders[line].readLine()); // read the next line
                 }
                 lines.set(firstMinLine, postingReaders[firstMinLine].readLine());
-                termPostingStr.append("\n"); // append line ending.
-                invertedFileWriter.append(termPostingStr); // write the merged line.
 
                 // get term for minTerm from dictionary.
                 Optional<Term> optionalTerm = dictionary.lookupTerm(minTerm);
@@ -164,16 +167,29 @@ public final class PostingCache {
 
                 // update pointer.
                 optionalTerm.get().pointer = lineNumber;
-                if(dictionary.isEntity(minTerm))
-                    documentMap.updateEntity(termPostingStr.toString());
+                if(dictionary.isEntity(minTerm)) {
+                    // if the term we added is an entity update the document map.
+                    String postingString = termPostingStr.toString();
+                    entityUpdate.add(() -> documentMap.updateEntity(postingString, entityUpdate::complete));
+                }
+
+                termPostingStr.append("\n"); // append line ending.
+                invertedFileWriter.append(termPostingStr); // write the merged line.
+
                 minLines.clear();
                 lineNumber++;
             }
 
+            // all entity updates have been sent.
+            entityUpdate.closeGroup();
+
             // release all the files held by the readers and writers.
             invertedFileWriter.close();
-            for (int i = 0; i < postingReaders.length; i++)
-                postingReaders[i].close();
+            for (BufferedReader postingReader : postingReaders)
+                postingReader.close();
+
+            // wait for all the entity updates to complete.
+            entityUpdate.awaitCompletion();
 
         } catch (IOException e) {
             Logger.getInstance().error(e);

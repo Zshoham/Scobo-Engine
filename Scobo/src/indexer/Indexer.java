@@ -34,14 +34,14 @@ import java.util.concurrent.CountDownLatch;
  */
 public class Indexer {
 
-    private final Dictionary dictionary;
-    private final DocumentMap documentMap;
-    private final DocumentBuffer buffer;
+    private Dictionary dictionary;
+    private DocumentMap documentMap;
+    private DocumentBuffer buffer;
 
     protected TaskGroup CPUTasks;
     protected TaskGroup IOTasks;
 
-    private CountDownLatch latch;
+    private CountDownLatch indexFinishedLatch;
 
     private int termCount;
 
@@ -56,9 +56,9 @@ public class Indexer {
         IOTasks.openGroup();
         this.dictionary = new Dictionary();
         PostingCache.initCache(this);
-        this.documentMap = new DocumentMap(this);
+        this.documentMap = new DocumentMap();
         this.buffer = new DocumentBuffer(this);
-        this.latch = new CountDownLatch(1);
+        this.indexFinishedLatch = new CountDownLatch(1);
         this.termCount = 0;
     }
 
@@ -68,17 +68,32 @@ public class Indexer {
      * indexer can now start entering it's second phase.
      */
     public void onFinishParser() {
-        CPUTasks.closeGroup();
+        // flush the buffer and wait for the
+        // last of the postings to be written.
         buffer.flush();
+        CPUTasks.closeGroup();
         IOTasks.closeGroup();
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
+
+        // merge all the posting files.
         PostingCache.merge(dictionary, documentMap);
+        PostingCache.clean();
+
+        // save all the dictionary.
         this.termCount = dictionary.size();
         dictionary.save();
-        documentMap.dumpNow();
-        PostingCache.clean();
-        latch.countDown();
+        documentMap.save();
+
+        // release all memory held by the indexer.
+        this.dictionary = null;
+        this.documentMap = null;
+        this.buffer = null;
+        System.gc();
+
+        // release the latch allowing threads wading
+        // for awaitIndex to continue.
+        indexFinishedLatch.countDown();
     }
 
     /**
@@ -88,7 +103,7 @@ public class Indexer {
      * ready to be used.
      */
     public void awaitIndex() {
-        try { latch.await(); }
+        try { indexFinishedLatch.await(); }
         catch (InterruptedException e) {
             Logger.getInstance().warn(e);
         }

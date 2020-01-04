@@ -208,6 +208,13 @@ public final class Dictionary {
             term = term.replace("dollars", "Dollars");
             term = term.replace("m", "M");
         }
+        // if the entity dictionary exists then check if the term is an entity.
+        if (entityDictionary != null) {
+            Optional<Term> optionalEntity = this.lookupEntity(term.toUpperCase());
+            if (optionalEntity.isPresent())
+                return optionalEntity;
+        }
+
         Optional<Term> optionalTerm = Optional.ofNullable(dictionary.get(term));
         if (optionalTerm.isPresent())
             return optionalTerm;
@@ -238,7 +245,7 @@ public final class Dictionary {
      * @return true if the string is a valid entity, false otherwise.
      */
     boolean isEntity(String entity) {
-        return entityDictionary.containsKey(entity);
+        return entityDictionary.containsKey(entity.toUpperCase());
     }
 
     /**
@@ -262,7 +269,7 @@ public final class Dictionary {
     /**
      * Saves the {@code Dictionary} to the directory specified by {@link Configuration}
      */
-    public void save()  {
+    void save()  {
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(getPath()));
 
@@ -271,6 +278,9 @@ public final class Dictionary {
                 saveDictionary(entityDictionary, writer);
 
             writer.close();
+
+            // if the dictionary is saved then the entities are not needed anymore.
+            entities = null;
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
