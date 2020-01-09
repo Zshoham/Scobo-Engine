@@ -1,6 +1,5 @@
 package parser;
 
-import indexer.Indexer;
 import util.Configuration;
 import util.Logger;
 import util.TaskGroup;
@@ -29,31 +28,48 @@ public class Parser {
     TaskGroup CPUTasks; // Group all the CPU tasks
     Logger LOG = Logger.getInstance();
 
-    private volatile AtomicInteger documentCount; // Count how many document have been parsed
+    private volatile AtomicInteger documentCount; // Count how many documents have been parsed
 
-    private Indexer indexer; // Pointer to the indexer
+    private Consumer consumer; // Pointer to the consumer
+
+    private DocumentProvider provider; // Provides documents to parse
 
     /**
-     * Constructor for the parser object
+     * Constructs a parser using the corpus path
+     * and a Consumer
      * <p>
      *     initialise the task groups
      *     give values to the parser elements
      *     loads the stop words list
      * </p>
      * @param path string path to the corpus directory
-     * @param indexer pointer to the main indexer of the engine
+     * @param consumer pointer to the consumer that will be supplied with the
+     *                 parsed documents.
      */
-    public Parser(String path, Indexer indexer) {
+    public Parser(String path, Consumer consumer) {
         IOTasks = TaskManager.getTaskGroup(TaskManager.TaskType.IO);
         CPUTasks = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
         this.corpusPath = path + "/corpus";
-        this.indexer = indexer;
+        this.consumer = consumer;
         this.documentCount = new AtomicInteger(0);
 
         loadStopWords(path);
     }
 
-    //loads the stop words list- all the words to ignore from
+    /**
+     * Constructs a parser using a DocumentProvider
+     * in place of using the corpus path in order to construct the
+     * documents.
+     * @param stopWordsPath path to where a stop words file will reside.
+     * @param consumer the consumer that will use the parsers output.
+     * @param provider provides the documents for parsing.
+     */
+    public Parser(String stopWordsPath, Consumer consumer, DocumentProvider provider) {
+        this(stopWordsPath, consumer);
+        this.provider = provider;
+    }
+
+    //loads the stop words list- all the words that need to be ignored
     private void loadStopWords(String path) {
         try {
             Stream<String> lines = Files.lines(Paths.get(path + "/stop_words.txt"));
@@ -93,15 +109,24 @@ public class Parser {
      */
     void onFinishedParse(Document document) {
         this.documentCount.incrementAndGet();
-        indexer.index(document);
+        consumer.consume(document);
     }
 
     /**
-     * Start the files reading and documents parsing
-     * and start new thread to wait until parsing is done
+     * Start the parsing process, if no DocumentProvider was set
+     * then read files from the corpus path.
      */
     public void start() {
-        new ReadFile(corpusPath, this); //Start reading files
+        CPUTasks.openGroup();
+        if (provider != null) {
+            for (String document : provider.getDocuments())
+                CPUTasks.add(new Parse(document, this));
+
+            CPUTasks.closeGroup();
+        }
+        else
+            new ReadFile(corpusPath, this); //Start reading files
+
         new Thread(this::finish, "parse waiter").start(); // Start new thread to wait for parsing to finish
     }
 
@@ -109,8 +134,8 @@ public class Parser {
      * What to do when the parsing process is done
      */
     private void finish() {
-        this.awaitParse();        // Wait until parsing is done
-        indexer.onFinishParser(); // Wait acknowledge the indexer parsing is done and he can now wait for indexing to finish
+        this.awaitParse();          // Wait until parsing is done
+        consumer.onFinishParser();  // Wait acknowledge the consumer parsing is done and he can now wait for indexing to finish
     }
 
     /**
@@ -124,7 +149,6 @@ public class Parser {
      * Wait until parsing is done
      */
     public void awaitParse() {
-        CPUTasks.openGroup();
         CPUTasks.awaitCompletion();
     }
 
@@ -133,4 +157,15 @@ public class Parser {
     }
 
     int getBatchSize() { return Parser.BATCH_SIZE; }
+
+
+    public interface DocumentProvider {
+        Iterable<String> getDocuments();
+    }
+
+    public interface Consumer {
+        void consume(Document document);
+        void onFinishParser();
+
+    }
 }

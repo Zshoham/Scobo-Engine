@@ -40,6 +40,10 @@ public class Configuration {
     private static final String USE_STEMMER_PROP = "UseStemmer";
     private static final boolean DEFAULT_USE_STEMMER = false;
 
+    private boolean useSemantic;
+    private static final String USE_SEMANTIC_PROP = "UseSemantic";
+    private static final boolean DEFAULT_USE_SEMANTIC = false;
+
     private Configuration() {
         File configFile = new File(CONFIG_PATH);
         if (!configFile.exists())
@@ -59,6 +63,7 @@ public class Configuration {
             this.parserBatchSize = Integer.parseInt(properties.getProperty(PARSER_BATCH_SIZE_PROP));
             this.logPath = properties.getProperty(LOG_PATH_PROP);
             this.useStemmer = Boolean.parseBoolean(properties.getProperty(USE_STEMMER_PROP));
+            this.useSemantic = Boolean.parseBoolean(properties.getProperty(USE_SEMANTIC_PROP));
         } catch (IOException e) {
             Logger.getInstance().error(e);
         }
@@ -72,6 +77,7 @@ public class Configuration {
         this.parserBatchSize = DEFAULT_PARSER_BATCH_SIZE;
         this.logPath = DEFAULT_LOG_PATH;
         this.useStemmer = DEFAULT_USE_STEMMER;
+        this.useSemantic = DEFAULT_USE_SEMANTIC;
         updateConfig();
     }
 
@@ -87,7 +93,8 @@ public class Configuration {
         properties.setProperty(PARSER_BATCH_SIZE_PROP, String.valueOf(this.parserBatchSize));
         properties.setProperty(LOG_PATH_PROP, this.logPath);
         properties.setProperty(USE_STEMMER_PROP, String.valueOf(this.useStemmer));
-        
+        properties.setProperty(USE_SEMANTIC_PROP, String.valueOf(this.useSemantic));
+
         try {
             FileWriter propWriter = new FileWriter(CONFIG_PATH);
             properties.store(propWriter, "Scobo Properties");
@@ -139,11 +146,20 @@ public class Configuration {
      */
     public void setUseStemmer(boolean useStemmer) { this.useStemmer = useStemmer; }
 
+    /**
+     * Changes weather or not the engine will use the semantic analysis, this change only applies to
+     * the current run of the engine, and will not persist
+     * unless the {@link Configuration#updateConfig()} method is called.
+     * @param useSemantic true if the engine should use a stemmer, false otherwise.
+     */
+    public void setUseSemantic(boolean useSemantic) { this.useSemantic = useSemantic; }
+
     public String getCorpusPath() { return corpusPath; }
     public String getIndexPath() { return indexPath; }
     public int getParserBatchSize() { return parserBatchSize; }
     public String getLogPath() { return logPath; }
     public boolean getUseStemmer() { return useStemmer; }
+    public boolean getUseSemantic() { return useSemantic; }
 
     public String getDictionaryPath() {
         return indexPath + "/"  + getUseStemmerPath() + "/dictionary.txt";
@@ -159,6 +175,18 @@ public class Configuration {
 
     public String getInvertedFilePath() {
         return indexPath + "/"  + getUseStemmerPath() + "/inverted_file.txt";
+    }
+
+    public String getGloVeStemmedPath() {
+        return getClass().getResource("Glove.stemmed").getPath();
+    }
+
+    public String getGloVeUnStemmedPath() {
+        return getClass().getResource("Glove.unstemmed").getPath();
+    }
+
+    public String getDictSimPath() {
+        return indexPath + "/dictSim.txt";
     }
 
     // returns the correct folder name for the index according to the value of useStemmer

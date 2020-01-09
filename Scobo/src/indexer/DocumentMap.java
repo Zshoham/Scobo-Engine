@@ -3,6 +3,7 @@ package indexer;
 import parser.Document;
 import util.Configuration;
 import util.Logger;
+import util.Pair;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -179,15 +180,15 @@ public final class DocumentMap {
         public String name;
         public int maxFrequency;
         public int length;
-        public ArrayList<Map.Entry<String, Integer>> dominantEntities;
-        private Map.Entry<String, Integer> minEntity;
+        public ArrayList<Pair<String, Integer>> dominantEntities;
+        private Pair<String, Integer> minEntity;
 
         public DocumentMapping(Document document) {
             this.name = document.name;
             this.maxFrequency = document.maxFrequency;
             this.length = document.length;
             this.dominantEntities = new ArrayList<>(5);
-            minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
+            minEntity = new Pair<>("", Integer.MAX_VALUE);
         }
 
         public DocumentMapping(String strMapping) {
@@ -204,30 +205,30 @@ public final class DocumentMap {
                 while (i < contents.length) {
                     String entity = contents[i++];
                     int frequency = Integer.parseInt(contents[i++]);
-                    dominantEntities.add(new HashMap.SimpleEntry<>(entity, frequency));
+                    dominantEntities.add(new Pair<>(entity, frequency));
                 }
             }
         }
 
         //updates the dominantEntities list with a new entity and its frequency.
         synchronized void updateEntity(String entity, int frequency) {
-            Map.Entry<String, Integer> newEntry = new HashMap.SimpleEntry<>(entity, frequency);
+            Pair<String, Integer> newEntry = new Pair<>(entity, frequency);
             // if the entity list is still not full
             // add the new entity to the list and update the min entity.
             if (dominantEntities.size() < DOMINANT_ENTITIES_COUNT) {
                 dominantEntities.add(newEntry);
-                if (frequency < minEntity.getValue())
+                if (frequency < minEntity.second)
                     minEntity = newEntry;
             }
             else {
                 // otherwise remove the min entity, add the new entity
                 // and find the new min entity.
-                if (frequency < minEntity.getValue()) return;
+                if (frequency < minEntity.second) return;
                 dominantEntities.remove(minEntity);
                 dominantEntities.add(newEntry);
-                minEntity = new HashMap.SimpleEntry<>("", Integer.MAX_VALUE);
-                for (Map.Entry<String, Integer> dominantEntity : dominantEntities) {
-                    if (dominantEntity.getValue() < minEntity.getValue())
+                minEntity = new Pair<>("", Integer.MAX_VALUE);
+                for (Pair<String, Integer> dominantEntity : dominantEntities) {
+                    if (dominantEntity.second < minEntity.second)
                         minEntity = dominantEntity;
                 }
             }
@@ -239,8 +240,8 @@ public final class DocumentMap {
             res.append(maxFrequency).append(",");
             res.append(length);
             synchronized (this) {
-                for (Map.Entry<String, Integer> entity: dominantEntities)
-                    res.append(",").append(entity.getKey()).append(",").append(entity.getValue());
+                for (Pair<String, Integer> entity: dominantEntities)
+                    res.append(",").append(entity.first).append(",").append(entity.second);
             }
             return res.toString();
         }

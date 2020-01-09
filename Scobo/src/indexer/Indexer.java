@@ -1,6 +1,7 @@
 package indexer;
 
 import parser.Document;
+import parser.Parser;
 import util.Logger;
 import util.TaskGroup;
 import util.TaskManager;
@@ -27,12 +28,12 @@ import java.util.concurrent.CountDownLatch;
  *         inverted file where each line is a term -> documents mapping
  *     </li>
  *
- *     during this process a {@link Dictionary} and {@link DocumentMap} are created
+ *     <p>during this process a {@link Dictionary} and {@link DocumentMap} are created
  *     in order to later retrieve information from the inverted file.
  * </ul>
  *
  */
-public class Indexer {
+public class Indexer implements Parser.Consumer {
 
     private Dictionary dictionary;
     private DocumentMap documentMap;
@@ -67,6 +68,7 @@ public class Indexer {
      * that the last of the documents has been parsed and the
      * indexer can now start entering it's second phase.
      */
+    @Override
     public void onFinishParser() {
         // flush the buffer and wait for the
         // last of the postings to be written.
@@ -76,9 +78,17 @@ public class Indexer {
         CPUTasks.awaitCompletion();
         IOTasks.awaitCompletion();
 
+        Thread semanticAnalyzer = new Thread(new SemanticAnalyzer(dictionary));
+
         // merge all the posting files.
         PostingCache.merge(dictionary, documentMap);
         PostingCache.clean();
+
+        // wait for the analyzer to finish.
+        try { semanticAnalyzer.join(); }
+        catch (InterruptedException e) {
+            Logger.getInstance().warn(e);
+        }
 
         // save all the dictionary.
         this.termCount = dictionary.size();
@@ -113,7 +123,8 @@ public class Indexer {
      * Adds a document to the inverted index.
      * @param document a document to be indexed.
      */
-    public void index(Document document) {
+    @Override
+    public void consume(Document document) {
         buffer.addToBuffer(document);
     }
 

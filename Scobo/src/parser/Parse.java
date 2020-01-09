@@ -20,7 +20,7 @@ class Parse implements Runnable {
     //REGEX pattern to get all the hyphen separated words and numbers in the document
     private static final Pattern hyphenPattern = Pattern.compile("\\w+([-]\\w+)+");
     //REGEX pattern to get all the words in the dictionary
-    //   word is has least one letter, without the chars -$<> before or after
+    //   a word has at least one letter, without the chars -$<> before or after
     private static final Pattern wordPattern = Pattern.compile("(?<![-$<])\\b\\w+\\b(?![->])");
 
     // Maximum amount of words in entity

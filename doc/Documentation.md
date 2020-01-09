@@ -194,8 +194,10 @@ Runnable Class, handles the parsing process for a single document.
 
 Manages file reading from the corpus, and documents parsing.
 
-* `public Parser(String path, Indexer indexer)` :
-  Constructor for the parser object, initialize the task groups, give values to the parser elements, loads the stop words list 
+* `public Parser(String path, Consumer consumer)` :
+  Constructs a parser using the corpus path and a Consumer, initialize the task groups, give values to the parser elements, loads the stop words list 
+* `public Parser(String stopWordsPath, Consumer consumer, DocumentProvider provider)` :
+  Constructs a parser using a DocumentProvider in place of using the corpus path in order to construct the documents.
 * `private void loadStopWords(String path)` :
   loads the stop words list- all the words to ignore from
 * `boolean isStopWord(String word)` :  check if given word is stop word
@@ -203,7 +205,7 @@ Manages file reading from the corpus, and documents parsing.
   If configured to stem- stem a given word otherwise, return the same word.
 * `void onFinishedParse(Document document)` : notify the parser that document parse is finished
 * `public void start()` : 
-  Start the files reading and documents parsing and start new thread to wait until parsing is done.
+  Start the parsing process, if no DocumentProvider was set then read files from the corpus path.
 * `private void finish()` : What to do when the parsing process is done
 * `public void awaitRead()` : Wait until finished reading all the corpus files
 * `public void awaitParse()` : Wait until parsing is done
@@ -331,8 +333,6 @@ Document Map file format: Each line in the file represents a document ID -> docu
   - `synchronized void updateEntity(String entity, int frequency)` :
     Updates the `dominantEntities` list with a new entity and its frequency.
 
-
-
 ### Indexer Class
 
 Manages the indexing of the documents produced by the `Parser`
@@ -340,13 +340,16 @@ Manages the indexing of the documents produced by the `Parser`
  indexing is done in two phases: 
 
 - first a batch of documents is taken from the parser and then is inverted into into term -> document mappings and then those mappings are written into a single posting file.     
-- after all the documents have been inverted they are all merged into a single inverted file where each line is a term -> documents mapping during this process a `Dictionary` and`DocumentMap`are created     in order to later retrieve information from the inverted file.
+- after all the documents have been inverted they are all merged into a single inverted file where each line is a term -> documents mapping 
 
-* `public void onFinishParser()` : 
+during this process a `Dictionary` and`DocumentMap` are created     in order to later retrieve information from the inverted file.
+
+* public void onFinishParser() : 
   Callback meant to be used by the parser to notify the indexer that the last of the documents has been parsed and the indexer can now start entering it's second phase.
+
 * `public void awaitIndex()` :
   Waits until all indexing is done. when this method returns all posting files are gone and the the inverted file, dictionary, document map are ready to be used.
-* `public void index(Document document)` : Adds a document to the inverted index.
+* `public void consume(Document document)` : Adds a document to the inverted index.
 * `void queueInvert(LinkedList<Document> documents)` : 
   Queues an invert task for the given list of documents.
 * `private void invert(LinkedList<Document> documents)` : 
@@ -479,6 +482,8 @@ Scobo Engine Configuration manager. Handles the creation, loading, and updating 
   Changes the path to the log file, this change only applies to the current run of the engine, and will not persist unless the `updateConfig()` method is called.
 * `public void setUseStemmer(boolean useStemmer)` : 
   Changes weather or not the engine will use a stemmer, this change only applies to the current run of the engine, and will not persist unless the `updateConfig()` method is called.
+* `public void setUseSemantic(boolean useSemantic)`  :
+  Changes weather or not the engine will use the semantic analysis, this change only applies to the current run of the engine, and will not persist unless the `updateConfig()` method is called.
 * The following methods are getters for all the configurations :
   * `public String getCorpusPath()`
   * `public String getIndexPath()`
@@ -495,7 +500,7 @@ Scobo Engine Configuration manager. Handles the creation, loading, and updating 
 
 A synchronization aid that allows one or more threads to wait until a set of operations being performed in other threads completes.  
 
-The `CountLatch` is very similar to the `CountDownLatch` it provides the same functionality only adding the ability to `countUp()` in addition to to `CountDownLatch.countDown()`. 
+[The `CountLatch` is very similar to the `CountDownLatch` it provides the same functionality only adding the ability to `countUp()` in addition to to `CountDownLatch.countDown()`. 
 
 The `CountLatch` is initialized to some count, the count may be thought of as the number of tasks/threads that need to complete before some other waiting threads can continue. The count can change through the `countDown()` and `countUp()`, whenever the count reaches 0 all the threads waiting using the `await()` method will be notified. 
 
@@ -527,7 +532,7 @@ The `CountLatch` is initialized to some count, the count may be thought of as th
 
 ### Logger Class
 
-Simplistic Logger class. This class is a singleton, as such in order to use it call [`getInstance()`](file:///home/shoham/Dev/Scobo-Engine/doc/JavaDoc/util/Logger.html#getInstance()) Supports Three logging levels : 
+Simplistic Logger class. This class is a singleton, as such in order to use it call `getInstance()` Supports Three logging levels : 
 
 - MESSAGE - use `message(String)` to log message
 - WARNING - use `warn(String)` to log warning
