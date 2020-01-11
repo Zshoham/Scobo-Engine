@@ -15,7 +15,7 @@ public class GUI extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(Objects.requireNonNull(getClass().getClassLoader().getResource("gui.fxml")));
         Parent root = fxmlLoader.load();
         primaryStage.setTitle("Scobo Engine");
-        primaryStage.setScene(new Scene(root, 700, 350));
+        primaryStage.setScene(new Scene(root, 700, 480));
         primaryStage.setResizable(false);
         primaryStage.show();
 

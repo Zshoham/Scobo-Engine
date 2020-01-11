@@ -437,10 +437,14 @@ This class *controls* the application during its runtime, most of its functional
   event, triggered when the user browses for the index path, updates the text field as well as updating the configuration with the selected index path.
 * `public void onClickBrowseLog()` : 
   event, triggered when the user browses for the log path, updates the text field as well as updating the configuration with the selected log path.
+* `public void onClickBrowseQuery()` :
+  event, triggered when the user browses for a query file, updates the text field as well as updating the configuration with the selected query file.
 * `public void onClickSaveOptions()` :
   event, triggered when the user clicks the save button, this saves the currently selected configuration to disk so it will be available in the next run of the application.
-* `public void onClickRun()` : 
-  event, triggered when the user clicks the run button , runs the parser/indexer and creates the inverted index files.
+* `public void onClickRunIndex()` : 
+  event, triggered when the user clicks the run index button , runs the parser/indexer and creates the inverted index files.
+* `public void onClickReset()` :
+  event, triggered when the user clicks the run query button, runs the query processor on the provided queries and produces a result file or a window with the results.
 * `public void onClickReset()` : 
   event, triggered when the user clicks the reset button, clears the memory and disk of the dictionary and inverted file. 
 * `public void onClickLoadDict()` : 
@@ -449,6 +453,9 @@ This class *controls* the application during its runtime, most of its functional
   event, triggered when the user clicks the show dictionary button, opens a window with a table view containing two columns, all the terms as they appear in the dictionary, and their frequencies in the corpus.
 * `private void makeViewable()` : creates a sorted view of the dictionary.
 * `private void showAlert(String title, String message)` : shows alert with given text and message.
+*  `private String[] getQueriesFromFile()` : parses the query file and returns an array of queries.
+*  `private void saveQueryResults(QueryResult result)` : saves the query results as a file.
+*  `private void showQueryResult(List<Integer> first)` : shows the query result in a new window.
 
 ### DictionaryEntry Class
 

@@ -1,24 +1,28 @@
 package gui;
 
 import indexer.*;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.StackPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import parser.Parser;
+import query.QueryProcessor;
+import query.QueryResult;
 import util.Configuration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Application Controller
@@ -31,6 +35,9 @@ public class Controller {
     @FXML public TextField logPath;
     @FXML public TextField parserBatchSize;
     @FXML public CheckBox useStemmer;
+    @FXML public CheckBox useSemantic;
+    @FXML public TextField queryText;
+    @FXML public TextField queryPath;
 
     private Stage stage;
 
@@ -40,6 +47,9 @@ public class Controller {
 
     private Dictionary dictionary;
     private DocumentMap documentMap;
+
+    private Indexer indexer;
+    private QueryProcessor queryProcessor;
 
     private final ObservableList<DictionaryEntry> viewableDictionary = FXCollections.observableArrayList();
 
@@ -53,6 +63,7 @@ public class Controller {
         logPath.setText(new File(configuration.getLogPath()).getAbsolutePath());
         useStemmer.selectedProperty().setValue(configuration.getUseStemmer());
         useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> configuration.setUseStemmer(newValue));
+        useSemantic.selectedProperty().addListener((observable, oldValue, newValue) -> configuration.setUseSemantic(newValue));
 
         parserBatchSize.setText(String.valueOf(configuration.getParserBatchSize()));
         parserBatchSize.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -69,6 +80,7 @@ public class Controller {
         configuration.setIndexPath(indexPath.getText());
         configuration.setLogPath(logPath.getText());
         configuration.setUseStemmer(useStemmer.selectedProperty().get());
+        configuration.setUseSemantic(useSemantic.selectedProperty().get());
         configuration.setParserBatchSize(Integer.parseInt(parserBatchSize.getText()));
     }
 
@@ -89,6 +101,14 @@ public class Controller {
     }
 
     @FXML
+    public void onClickBrowseQuery() {
+        directoryChooser.setTitle("Select Query File Path");
+        File browsedFile = directoryChooser.showDialog(stage);
+        if (browsedFile != null)
+            queryPath.setText(browsedFile.getAbsolutePath());
+    }
+
+    @FXML
     public void onClickBrowseLog() {
         directoryChooser.setTitle("Select Index Path");
         File browsedFile = directoryChooser.showDialog(stage);
@@ -104,7 +124,7 @@ public class Controller {
     }
 
     @FXML
-    public void onClickRun() {
+    public void onClickRunIndex() {
         updateOptions();
         Indexer indexer = new Indexer();
         Parser parser = new Parser(configuration.getCorpusPath(), indexer);
@@ -122,6 +142,39 @@ public class Controller {
                 "time to parse all documents: " + parseTime + "sec\n" +
                 "total indexing time: " + indexTime + "sec";
         showAlert("indexing completed successfully", message);
+    }
+
+    @FXML
+    public void onClickRunQuery() {
+        updateOptions();
+        if (dictionary == null || documentMap == null)
+            showAlert("ERROR", "cannot process query when dictionary is not loaded.");
+        if (!Files.exists(Paths.get(configuration.getInvertedFilePath())))
+            showAlert("ERROR", "no inverted index was found at the path provided.");
+
+        queryProcessor = new QueryProcessor(configuration.getIndexPath(), dictionary, documentMap);
+        QueryResult textResult;
+        if (!queryText.getText().isEmpty()) {
+            long t0 = System.currentTimeMillis();
+            textResult = queryProcessor.query(queryText.getText());
+            double queryTime = (System.currentTimeMillis() - t0) / 1000.0;
+            showAlert("SUCCESS", "query results are ready!\n" +
+                    " query processing took: " + queryTime);
+            showQueryResult(textResult.first());
+        }
+
+        QueryResult fileResult;
+        String[] queries = getQueriesFromFile();
+        if (queries != null) {
+            long t0 = System.currentTimeMillis();
+            fileResult = queryProcessor.query(queries);
+            saveQueryResults(fileResult);
+            double queryTime = (System.currentTimeMillis() - t0) / 1000.0;
+            showAlert("SUCCESS", "query results are ready!\n" +
+                    "query processing took: " + queryTime + "\n" +
+                    "the query results were saved to file \"qrels.txt\" at: " +
+                    queryPath.getText().substring(0, queryPath.getText().lastIndexOf("/")));
+        }
     }
 
     @FXML
@@ -206,5 +259,34 @@ public class Controller {
         alert.setHeaderText(title);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    // parses the query file and returns an array of queries.
+    private String[] getQueriesFromFile() {
+        String[] queries = null;
+        try {
+            LinkedList<String> queryStrings = new LinkedList<>();
+            List<String> lines = Files.readAllLines((Paths.get(queryPath.getText())));
+            for (String line : lines) {
+                if (line.contains("<title>"))
+                    queryStrings.add(line.substring(line.indexOf('>') + 1));
+            }
+
+            queries = queryStrings.toArray(new String[0]);
+        } catch (IOException e) {
+            showAlert("ERROR", "could not read query file");
+        }
+
+        return queries;
+    }
+
+    // saves the query results as a file.
+    private void saveQueryResults(QueryResult result) {
+
+    }
+
+    // shows the query result in a new window.
+    private void showQueryResult(List<Integer> first) {
+
     }
 }

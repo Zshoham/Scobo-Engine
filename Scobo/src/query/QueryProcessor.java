@@ -16,11 +16,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class QueryProcessor implements Parser.Consumer {
 
-    private String corpusPath;
+    private String indexPath;
 
     Dictionary dictionary;
     DocumentMap documentMap;
@@ -32,8 +31,8 @@ public class QueryProcessor implements Parser.Consumer {
     TaskGroup CPUTasks;
     TaskGroup IOTasks;
 
-    public QueryProcessor(String corpusPath, Dictionary dictionary, DocumentMap documentMap) {
-        this.corpusPath = corpusPath;
+    public QueryProcessor(String indexPath, Dictionary dictionary, DocumentMap documentMap) {
+        this.indexPath = indexPath;
         this.dictionary = dictionary;
         this.documentMap = documentMap;
         CPUTasks = TaskManager.getTaskGroup(TaskManager.TaskType.COMPUTE);
@@ -59,7 +58,7 @@ public class QueryProcessor implements Parser.Consumer {
     public QueryResult query(String... queries) {
         currentResult = new QueryResult(queries);
         CPUTasks.openGroup();
-        Parser parser = new Parser(corpusPath, this, () -> asDocuments(queries));
+        Parser parser = new Parser(indexPath, this, () -> asDocuments(queries));
         parser.start();
 
         CPUTasks.awaitCompletion();
