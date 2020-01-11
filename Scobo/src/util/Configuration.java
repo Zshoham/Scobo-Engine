@@ -1,6 +1,7 @@
 package util;
 
 import java.io.*;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -178,15 +179,15 @@ public class Configuration {
     }
 
     public String getGloVeStemmedPath() {
-        return getClass().getResource("Glove.stemmed").getPath();
+        return Objects.requireNonNull(getClass().getClassLoader().getResource("GloSim.stemmed")).getPath();
     }
 
     public String getGloVeUnStemmedPath() {
-        return getClass().getResource("Glove.unstemmed").getPath();
+        return Objects.requireNonNull(getClass().getClassLoader().getResource("GloSim.unstemmed")).getPath();
     }
 
     public String getDictSimPath() {
-        return indexPath + "/dictSim.txt";
+        return indexPath + "/" + getUseStemmerPath() + "/DictSim.txt";
     }
 
     // returns the correct folder name for the index according to the value of useStemmer

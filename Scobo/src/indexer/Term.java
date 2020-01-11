@@ -23,9 +23,9 @@ public class Term {
     /**
      * pointer to the terms line in the inverted file.
      */
-    public int pointer;
+    public long pointer;
 
-    public Term(String term,int termFrequency, int termDocumentFrequency, int pointer) {
+    public Term(String term,int termFrequency, int termDocumentFrequency, long pointer) {
         this.term = term;
         this.termFrequency = termFrequency;
         this.termDocumentFrequency = termDocumentFrequency;

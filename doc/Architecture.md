@@ -43,7 +43,7 @@ When all documents have been written into posting files, the indexer initiates a
 
 ### Semantic Analysis
 
-As mentioned above a map of word -> similar words is used for semantic improvement of th queries, this map was created from the GloVe project in the following process:
+As mentioned above a map of word -> similar words is used for semantic improvement of the queries, this map was created from the GloVe project in the following process:
 
 1. The GloVe file consists of words -> vector mappings where each entry in the vector represents the words similarity to some concept. The following is done on the smallest provided GloVe file.
    * first clean the file of all non words and convert all the capitalized words to lower case.

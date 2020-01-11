@@ -329,7 +329,7 @@ public final class Dictionary {
             String term = contents[0];
             int termFrequency = Integer.parseInt(contents[1]);
             int documentFrequency = Integer.parseInt(contents[2]);
-            int pointer = Integer.parseInt(contents[3]);
+            long pointer = Long.parseLong(contents[3]);
             res.dictionary.put(term, new Term(term, termFrequency, documentFrequency, pointer));
         }
 

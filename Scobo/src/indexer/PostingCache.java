@@ -101,7 +101,7 @@ public final class PostingCache {
             boolean isFirstRead = true;
 
             //line number of the inverted file.
-            int lineNumber = 0;
+            long linePointer = 0;
             // number of readers who have finished reading their files.
             int countNull = 0;
 
@@ -166,7 +166,7 @@ public final class PostingCache {
                     throw new IllegalStateException("term does not exist in dictionary");
 
                 // update pointer.
-                optionalTerm.get().pointer = lineNumber;
+                optionalTerm.get().pointer = linePointer;
                 if(dictionary.isEntity(minTerm)) {
                     // if the term we added is an entity update the document map.
                     String postingString = termPostingStr.toString();
@@ -177,7 +177,7 @@ public final class PostingCache {
                 invertedFileWriter.append(termPostingStr); // write the merged line.
 
                 minLines.clear();
-                lineNumber++;
+                linePointer += termPostingStr.length();
             }
 
             // all entity updates have been sent.

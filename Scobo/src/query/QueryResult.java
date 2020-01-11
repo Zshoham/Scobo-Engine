@@ -14,8 +14,8 @@ public class QueryResult implements Iterable<List<Integer>> {
             results.put(query.hashCode(), Collections.emptyList());
     }
 
-    void updateResult(String query, List<Integer> rankings) {
-        this.results.put(query.hashCode(), rankings);
+    void updateResult(int queryHash, List<Integer> rankings) {
+        this.results.put(queryHash, rankings);
     }
 
     public List<Integer> resultOf(String query) {

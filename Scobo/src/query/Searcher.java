@@ -6,9 +6,8 @@ import util.Configuration;
 import util.Logger;
 import util.Pair;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,14 +15,14 @@ public class Searcher implements Runnable {
 
     QueryProcessor manager;
 
-    Document queryDocument;
+    Query query;
 
     // maps document ids to pairs <term, frequency> pairs.
     ConcurrentHashMap<Integer, List<Pair<String, Integer>>> relevantDocuments;
 
-    public Searcher(Document queryDocument, QueryProcessor manager) {
+    public Searcher(Query query, QueryProcessor manager) {
         this.manager = manager;
-        this.queryDocument = queryDocument;
+        this.query = query;
         relevantDocuments = new ConcurrentHashMap<>();
     }
 
@@ -39,42 +38,42 @@ public class Searcher implements Runnable {
     }
 
     private void expandQuery() {
-        for (String term : queryDocument.terms.keySet()) {
+        for (String term : query.terms.keySet()) {
             String[] sim = manager.gloSim.getOrDefault(term, null);
             if (sim != null)
-                expandTerm(term, sim);
+                expandTerm(sim);
         }
     }
 
-    private void expandTerm(String term, String[] sim) {
+    private void expandTerm(String[] sim) {
         for (String word : sim) {
             if (manager.dictionary.lookupTerm(word).isPresent())
-                queryDocument.addTerm(word);
+                query.addSemantic(word);
         }
     }
 
     private void loadDocuments() throws IOException {
         Configuration config = Configuration.getInstance();
-        BufferedReader termReader = new BufferedReader(new FileReader(config.getInvertedFilePath()));
-        ArrayList<Integer> lines = getLines(queryDocument.numbers.keySet());
-        lines.addAll(getLines(queryDocument.terms.keySet()));
-        lines.addAll(getLines(queryDocument.entities.keySet()));
-        lines.sort(Integer::compareTo);
+        RandomAccessFile termReader = new RandomAccessFile(config.getInvertedFilePath(), "r");
 
-        int currLine = 0;
-        for (int lineNumber : lines) {
-            String line = "";
-            while (currLine != lineNumber) {
-                line = termReader.readLine();
-                currLine++;
-            }
+        ArrayList<Long> linePointers = new ArrayList<>(query.length);
+        for (Map.Entry<String, Integer> term : query) {
+            Optional<Term> res = manager.dictionary.lookupTerm(term.getKey());
+            res.ifPresent(dictTerm -> linePointers.add(dictTerm.pointer));
+        }
+
+        linePointers.sort(Long::compareTo);
+
+        for (long linePointer : linePointers) {
+            termReader.seek(linePointer);
+            String line = termReader.readLine();
             addDocuments(line);
         }
     }
 
     private void addDocuments(String line) {
         // the format of the line in the inverted file is as follows t(|d,f)+
-        String[] content = line.split("|");
+        String[] content = line.split("\\|");
         String term = content[0];
         for (int i = 1; i < content.length; i++) {
             int splitIndex = content[i].indexOf(",");
@@ -89,15 +88,4 @@ public class Searcher implements Runnable {
             });
         }
     }
-
-    private ArrayList<Integer> getLines(Collection<String> terms) {
-        ArrayList<Integer> lines = new ArrayList<>(terms.size());
-        for (String term : terms) {
-            Optional<Term> res = manager.dictionary.lookupTerm(term);
-            res.ifPresent(dictTerm -> lines.add(dictTerm.pointer));
-        }
-
-        return lines;
-    }
-
 }

@@ -29,7 +29,7 @@ public class SemanticAnalyzer implements Runnable {
             BufferedWriter writer = new BufferedWriter(new FileWriter(dictSimPath));
             String line;
             while ((line = reader.readLine()) != null) {
-                String word = line.split(",")[0];
+                String word = line.substring(0, line.indexOf(","));
                 if (dictionary.lookupTerm(word).isPresent())
                     writer.append(line).append("\n");
             }

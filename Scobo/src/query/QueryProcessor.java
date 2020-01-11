@@ -68,7 +68,7 @@ public class QueryProcessor implements Parser.Consumer {
 
     @Override
     public void consume(Document document) {
-        CPUTasks.add(new Searcher(document, this));
+        CPUTasks.add(new Searcher(new Query(document), this));
     }
 
     @Override

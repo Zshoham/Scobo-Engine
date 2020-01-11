@@ -79,6 +79,7 @@ public class Indexer implements Parser.Consumer {
         IOTasks.awaitCompletion();
 
         Thread semanticAnalyzer = new Thread(new SemanticAnalyzer(dictionary));
+        semanticAnalyzer.start();
 
         // merge all the posting files.
         PostingCache.merge(dictionary, documentMap);
