@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Maps document IDs to document data and generates said IDs.
@@ -28,14 +29,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class DocumentMap {
 
-    // provides synchronization for writing to the document map file
-    private static final Object fileMonitor = new Object();
-
     private static final int MAP_SIZE = 524288;
     private static final float LOAD_FACTOR = 0.75f;
 
     private ConcurrentHashMap<Integer, DocumentMapping> documents;
     private volatile AtomicInteger runningID;
+    private volatile AtomicLong totalDocLength;
 
 
     /**
@@ -69,6 +68,7 @@ public final class DocumentMap {
     int addDocument(final Document document) {
         int docID = runningID.getAndIncrement();
         documents.computeIfAbsent(docID, integer -> new DocumentMapping(document));
+        this.totalDocLength.addAndGet(document.length);
         return docID;
     }
 
@@ -81,6 +81,14 @@ public final class DocumentMap {
      */
     public Optional<DocumentMapping> lookup(int docID) {
         return Optional.ofNullable(documents.get(docID));
+    }
+
+    public double getAverageLength() {
+        return this.totalDocLength.get() / ((double) this.documents.size());
+    }
+
+    public int size() {
+        return this.documents.size();
     }
 
     /**
@@ -108,16 +116,14 @@ public final class DocumentMap {
      */
     void save() {
         try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter(getPath()));
-            StringBuilder fileDump = new StringBuilder();
+            BufferedWriter fileWriter = new BufferedWriter(new FileWriter(getPath()));
+            fileWriter.append(String.valueOf(totalDocLength)).append("\n");
+
             for (Map.Entry<Integer, DocumentMapping> entry : documents.entrySet())
-                fileDump.append(entry.getKey()).append("|")
+                fileWriter.append(String.valueOf(entry.getKey())).append("|")
                         .append(entry.getValue().toString()).append("\n");
 
-            synchronized (fileMonitor) {
-                writer.append(fileDump);
-                writer.close();
-            }
+            fileWriter.close();
         }
         catch (IOException e) {
             Logger.getInstance().error(e);
@@ -143,16 +149,17 @@ public final class DocumentMap {
      * @throws IOException if the document map file is corrupted or not found.
      */
     public static DocumentMap loadDocumentMap() throws IOException {
-        List<String> lines;
-        synchronized (fileMonitor) {
-            lines = Files.readAllLines(Paths.get(getPath()));
-        }
+        List<String> lines = Files.readAllLines(Paths.get(getPath()));
+        BufferedReader fileReader = new BufferedReader(new FileReader(getPath()));
         DocumentMap res = new DocumentMap(lines.size(), LOAD_FACTOR);
 
-        for (String line : lines) {
+        res.totalDocLength = new AtomicLong(Long.parseLong(fileReader.readLine()));
+
+        String line;
+        while ((line = fileReader.readLine()) != null) {
             int startOfMapping = line.indexOf("|");
             int docID = Integer.parseInt(line.substring(0, startOfMapping));
-            res.documents.put(docID, new DocumentMapping(line.substring(startOfMapping)));
+            res.documents.put(docID, new DocumentMapping(line.substring(startOfMapping + 1)));
         }
 
         return res;
@@ -173,7 +180,7 @@ public final class DocumentMap {
      *     frequency in the document, the list represents the most common entities in the document.</li>
      * </ul>
      */
-    private static class DocumentMapping {
+    public static class DocumentMapping {
 
         private static final int DOMINANT_ENTITIES_COUNT = 5;
 
@@ -183,7 +190,7 @@ public final class DocumentMap {
         public ArrayList<Pair<String, Integer>> dominantEntities;
         private Pair<String, Integer> minEntity;
 
-        public DocumentMapping(Document document) {
+        DocumentMapping(Document document) {
             this.name = document.name;
             this.maxFrequency = document.maxFrequency;
             this.length = document.length;
@@ -191,7 +198,7 @@ public final class DocumentMap {
             minEntity = new Pair<>("", Integer.MAX_VALUE);
         }
 
-        public DocumentMapping(String strMapping) {
+        DocumentMapping(String strMapping) {
             String[] contents = strMapping.split(",");
             if (contents.length < 3 || contents.length > 3 + (DOMINANT_ENTITIES_COUNT * 2))
                 throw new IllegalStateException("Document Map file is corrupted");

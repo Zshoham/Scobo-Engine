@@ -3,13 +3,16 @@ package query;
 import parser.Document;
 
 import java.util.*;
+import java.util.function.Function;
 
-public class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
+class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
 
     public HashMap<String, Integer> semanticTerms;
+    public int id;
 
     public Query(Document document) {
         super(document.name);
+        this.id = Integer.parseInt(this.name);
         this.terms = document.terms;
         this.numbers = document.numbers;
         this.entities = document.entities;
@@ -26,6 +29,22 @@ public class Query extends Document implements Iterable<Map.Entry<String, Intege
 
             return frequency + 1;
         });
+    }
+
+    public int get(String term) {
+        int res = terms.getOrDefault(term,0);
+        if (res != 0)
+            return res;
+
+        res = numbers.getOrDefault(term, 0);
+        if (res != 0)
+            return res;
+
+        res = entities.getOrDefault(term, 0);
+        if (res != 0)
+            return res;
+
+        return semanticTerms.getOrDefault(term, 0);
     }
 
     public int size() {

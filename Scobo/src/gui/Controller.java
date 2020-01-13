@@ -11,18 +11,22 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.StackPane;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import parser.Parser;
 import query.QueryProcessor;
 import query.QueryResult;
 import util.Configuration;
+import util.Pair;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Application Controller
@@ -44,12 +48,10 @@ public class Controller {
     private Configuration configuration;
 
     private DirectoryChooser directoryChooser;
+    private FileChooser fileChooser;
 
     private Dictionary dictionary;
     private DocumentMap documentMap;
-
-    private Indexer indexer;
-    private QueryProcessor queryProcessor;
 
     private final ObservableList<DictionaryEntry> viewableDictionary = FXCollections.observableArrayList();
 
@@ -72,6 +74,7 @@ public class Controller {
         });
 
         directoryChooser = new DirectoryChooser();
+        fileChooser = new FileChooser();
 
     }
 
@@ -102,16 +105,16 @@ public class Controller {
 
     @FXML
     public void onClickBrowseQuery() {
-        directoryChooser.setTitle("Select Query File Path");
-        File browsedFile = directoryChooser.showDialog(stage);
+        fileChooser.setTitle("Select Query File Path");
+        File browsedFile = fileChooser.showOpenDialog(stage);
         if (browsedFile != null)
             queryPath.setText(browsedFile.getAbsolutePath());
     }
 
     @FXML
     public void onClickBrowseLog() {
-        directoryChooser.setTitle("Select Index Path");
-        File browsedFile = directoryChooser.showDialog(stage);
+        fileChooser.setTitle("Select Index Path");
+        File browsedFile = fileChooser.showOpenDialog(stage);
         if (browsedFile != null)
             logPath.setText(browsedFile.getAbsolutePath());
 
@@ -142,17 +145,29 @@ public class Controller {
                 "time to parse all documents: " + parseTime + "sec\n" +
                 "total indexing time: " + indexTime + "sec";
         showAlert("indexing completed successfully", message);
+
+        try {
+            Files.copy(Paths.get(corpusPath.getText() + "/stop_words.txt"),
+                    Paths.get(indexPath.getText() + "/stop_words.txt"));
+        } catch (IOException e) {
+            showAlert("ERROR", "could not copy stop_words.txt to index location");
+        }
     }
 
     @FXML
     public void onClickRunQuery() {
         updateOptions();
-        if (dictionary == null || documentMap == null)
+        if (dictionary == null || documentMap == null) {
             showAlert("ERROR", "cannot process query when dictionary is not loaded.");
-        if (!Files.exists(Paths.get(configuration.getInvertedFilePath())))
-            showAlert("ERROR", "no inverted index was found at the path provided.");
+            return;
+        }
 
-        queryProcessor = new QueryProcessor(configuration.getIndexPath(), dictionary, documentMap);
+        if (!Files.exists(Paths.get(configuration.getInvertedFilePath()))) {
+            showAlert("ERROR", "no inverted index was found at the path provided.");
+            return;
+        }
+
+        QueryProcessor queryProcessor = new QueryProcessor(configuration.getIndexPath(), dictionary, documentMap);
         QueryResult textResult;
         if (!queryText.getText().isEmpty()) {
             long t0 = System.currentTimeMillis();
@@ -164,17 +179,19 @@ public class Controller {
         }
 
         QueryResult fileResult;
-        String[] queries = getQueriesFromFile();
+        Pair<Integer, String>[] queries = getQueriesFromFile();
         if (queries != null) {
             long t0 = System.currentTimeMillis();
             fileResult = queryProcessor.query(queries);
-            saveQueryResults(fileResult);
+            String resultPath = queryPath.getText().substring(0, queryPath.getText().lastIndexOf("/")) + "/result.txt";
+            saveQueryResults(fileResult, resultPath);
             double queryTime = (System.currentTimeMillis() - t0) / 1000.0;
             showAlert("SUCCESS", "query results are ready!\n" +
                     "query processing took: " + queryTime + "\n" +
-                    "the query results were saved to file \"qrels.txt\" at: " +
-                    queryPath.getText().substring(0, queryPath.getText().lastIndexOf("/")));
+                    "the query results were saved to: " + resultPath);
         }
+
+        System.out.println("no query submitted!");
     }
 
     @FXML
@@ -262,17 +279,50 @@ public class Controller {
     }
 
     // parses the query file and returns an array of queries.
-    private String[] getQueriesFromFile() {
-        String[] queries = null;
+    private Pair<Integer, String>[] getQueriesFromFile() {
+        if (queryPath.getText().isEmpty())
+            return null;
+        Pair<Integer, String>[] queries = null;
         try {
-            LinkedList<String> queryStrings = new LinkedList<>();
-            List<String> lines = Files.readAllLines((Paths.get(queryPath.getText())));
-            for (String line : lines) {
-                if (line.contains("<title>"))
-                    queryStrings.add(line.substring(line.indexOf('>') + 1));
-            }
+            LinkedList<Pair<Integer, StringBuilder>> queryStrings = new LinkedList<>();
+            BufferedReader reader = new BufferedReader(new FileReader(queryPath.getText()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                // the syntax is "<num> Number: ddd" we want the "ddd"
+                if (line.contains("<num> Number:")) {
+                    String number = line.substring(line.indexOf(":") + 2).trim();
+                    queryStrings.addLast(new Pair<>(Integer.parseInt(number), new StringBuilder()));
+                }
 
-            queries = queryStrings.toArray(new String[0]);
+                // the syntax is "<title> title string" we want the "title string"
+                if (line.contains("<title>"))
+                    queryStrings.getLast().second.append(line.substring(line.indexOf('>') + 1)).append(".").append("\n");
+
+                // the syntax is "<desc> Description: multiline string", we want the "multiline string"
+                if (line.contains("<desc> Description:")) {
+                    while ((line = reader.readLine()) != null) {
+                        if (line.isEmpty() || line.charAt(0) == '<')
+                            break;
+                        queryStrings.getLast().second.append(line).append("\n");
+                    }
+                }
+
+                if (line == null) break;
+                if (line.contains("<narr> Narrative: ")) {
+                    while ((line = reader.readLine()) != null) {
+                        if (line.isEmpty() || line.charAt(0) == '<')
+                            break;
+                        if (line.contains("not relevant"))
+                            break;
+                        queryStrings.getLast().second.append(line).append("\n");
+                    }
+                }
+            }
+            queries = new Pair[queryStrings.size()];
+            int index = 0;
+            for (Pair<Integer, StringBuilder> queryString : queryStrings)
+                queries[index++] = new Pair<>(queryString.first, queryString.second.toString());
+
         } catch (IOException e) {
             showAlert("ERROR", "could not read query file");
         }
@@ -281,12 +331,40 @@ public class Controller {
     }
 
     // saves the query results as a file.
-    private void saveQueryResults(QueryResult result) {
+    private void saveQueryResults(QueryResult result, String path) throws IllegalStateException {
+        try {
+            BufferedWriter resultsWriter = new BufferedWriter(new FileWriter(path));
+
+            for (Map.Entry<Integer, int[]> query : result.sorted()) {
+                for (int docID : query.getValue()) {
+                    Optional<DocumentMap.DocumentMapping> dictTerm = documentMap.lookup(docID);
+                    String docName = dictTerm.orElseThrow(
+                            () -> new IllegalStateException("query result contained nonexistent document"))
+                            .name;
+
+                    resultsWriter.append(String.valueOf(query.getKey())).append(" ")
+                            .append("0 ")
+                            .append(docName).append(" ")
+                            .append("10 ")
+                            .append("9 ")
+                            .append("mt\n");
+                }
+            }
+
+            resultsWriter.close();
+        }
+        catch (IOException e) {
+            showAlert("ERROR", "failed to open query results file");
+        }
+
+
 
     }
 
     // shows the query result in a new window.
-    private void showQueryResult(List<Integer> first) {
-
+    private void showQueryResult(int[] docs) {
+        for (int i = 0; i < docs.length; i++) {
+            System.out.println(documentMap.lookup(docs[i]).orElse(null));
+        }
     }
 }

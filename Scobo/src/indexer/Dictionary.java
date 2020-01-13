@@ -256,7 +256,10 @@ public final class Dictionary {
      * @return the number of key-value mappings in this map
      */
     public int size() {
-        return this.dictionary.size();
+        int size = this.dictionary.size();
+        if (entityDictionary != null)
+            size += entityDictionary.size();
+        return size;
     }
 
     /**

@@ -1,43 +1,55 @@
 package query;
 
+import util.Pair;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-public class QueryResult implements Iterable<List<Integer>> {
+public class QueryResult implements Iterable<Map.Entry<Integer, int[]>> {
 
-    ConcurrentHashMap<Integer, List<Integer>> results;
+    ConcurrentHashMap<Integer, int[]> results;
 
     QueryResult(String... queries) {
         results = new ConcurrentHashMap<>(queries.length);
         for (String query : queries)
-            results.put(query.hashCode(), Collections.emptyList());
+            results.put(query.hashCode(), new int[0]);
     }
 
-    void updateResult(int queryHash, List<Integer> rankings) {
-        this.results.put(queryHash, rankings);
+    QueryResult(Pair<Integer, String>[] queries) {
+        results = new ConcurrentHashMap<>(queries.length);
+        for (Pair<Integer, String> query : queries)
+            results.put(query.first, new int[0]);
     }
 
-    public List<Integer> resultOf(String query) {
+    void updateResult(int queryID, int[] ranking) {
+        this.results.put(queryID, ranking);
+    }
+
+    public int[] resultOf(String query) {
         return results.get(query.hashCode());
     }
 
-    public List<Integer> first() {
+    public int[] first() {
         return results.values().iterator().next();
     }
 
-    @Override
-    public Iterator<List<Integer>> iterator() {
-        return results.values().iterator();
+    public Set<Map.Entry<Integer, int[]>> sorted() {
+        return new TreeMap<>(results).entrySet();
     }
 
     @Override
-    public void forEach(Consumer<? super List<Integer>> action) {
-        results.values().forEach(action);
+    public Iterator<Map.Entry<Integer, int[]>> iterator() {
+        return results.entrySet().iterator();
     }
 
     @Override
-    public Spliterator<List<Integer>> spliterator() {
-        return results.values().spliterator();
+    public void forEach(Consumer<? super Map.Entry<Integer, int[]>> action) {
+        results.entrySet().forEach(action);
+    }
+
+    @Override
+    public Spliterator<Map.Entry<Integer, int[]>> spliterator() {
+        return results.entrySet().spliterator();
     }
 }

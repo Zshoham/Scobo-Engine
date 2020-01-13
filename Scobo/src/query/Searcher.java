@@ -1,24 +1,25 @@
 package query;
 
 import indexer.Term;
-import parser.Document;
 import util.Configuration;
 import util.Logger;
-import util.Pair;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Searcher implements Runnable {
 
     QueryProcessor manager;
-
     Query query;
+    Ranker ranker;
 
     // maps document ids to pairs <term, frequency> pairs.
-    ConcurrentHashMap<Integer, List<Pair<String, Integer>>> relevantDocuments;
+    ConcurrentHashMap<Integer, Map<String, Integer>> relevantDocuments;
 
     public Searcher(Query query, QueryProcessor manager) {
         this.manager = manager;
@@ -28,13 +29,21 @@ public class Searcher implements Runnable {
 
     @Override
     public void run() {
-        if (Configuration.getInstance().getUseSemantic())
+        if (Configuration.getInstance().getUseSemantic()) {
             expandQuery();
+            ranker = Ranker.semantic(query, manager);
+        }
+        else ranker = Ranker.bm25(query, manager);
 
         try { loadDocuments(); }
         catch (IOException e) {
             Logger.getInstance().error(e);
         }
+
+        relevantDocuments.forEach((docID, tf) -> ranker.rank(docID, tf));
+        manager.currentResult.updateResult(query.id, ranker.getRanking());
+
+        manager.CPUTasks.complete();
     }
 
     private void expandQuery() {
@@ -46,9 +55,14 @@ public class Searcher implements Runnable {
     }
 
     private void expandTerm(String[] sim) {
+        int countAdded = 0;
         for (String word : sim) {
-            if (manager.dictionary.lookupTerm(word).isPresent())
+            if (manager.dictionary.lookupTerm(word).isPresent()) {
                 query.addSemantic(word);
+                countAdded++;
+            }
+            if (countAdded == 5)
+                break;
         }
     }
 
@@ -81,9 +95,9 @@ public class Searcher implements Runnable {
             int frequency = Integer.parseInt(content[i].substring(splitIndex + 1));
             relevantDocuments.compute(docID, (docID1, terms) -> {
                 if (terms == null)
-                    terms = new LinkedList<>();
+                    terms = new HashMap<>();
 
-                terms.add(new Pair<>(term, frequency));
+                terms.put(term, frequency);
                 return terms;
             });
         }
