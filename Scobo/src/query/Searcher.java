@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class Searcher implements Runnable {
 
@@ -61,7 +62,7 @@ public class Searcher implements Runnable {
                 query.addSemantic(word);
                 countAdded++;
             }
-            if (countAdded == 5)
+            if (countAdded == 2)
                 break;
         }
     }

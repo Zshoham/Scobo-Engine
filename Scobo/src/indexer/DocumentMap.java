@@ -50,6 +50,7 @@ public final class DocumentMap {
             mapFile.mkdirs();
 
         this.runningID = new AtomicInteger(0);
+        this.totalDocLength = new AtomicLong(0);
     }
 
     // private initialization constructor used by the package constructor and the
@@ -187,7 +188,7 @@ public final class DocumentMap {
         public String name;
         public int maxFrequency;
         public int length;
-        public ArrayList<Pair<String, Integer>> dominantEntities;
+        public List<Pair<String, Integer>> dominantEntities;
         private Pair<String, Integer> minEntity;
 
         DocumentMapping(Document document) {
@@ -203,7 +204,7 @@ public final class DocumentMap {
             if (contents.length < 3 || contents.length > 3 + (DOMINANT_ENTITIES_COUNT * 2))
                 throw new IllegalStateException("Document Map file is corrupted");
 
-            this.name = contents[0];
+            this.name = contents[0].trim();
             this.maxFrequency = Integer.parseInt(contents[1]);
             this.length = Integer.parseInt(contents[2]);
             dominantEntities = new ArrayList<>(DOMINANT_ENTITIES_COUNT);

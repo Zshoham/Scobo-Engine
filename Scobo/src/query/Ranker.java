@@ -2,6 +2,7 @@ package query;
 
 import indexer.DocumentMap.DocumentMapping;
 import indexer.Term;
+import util.Configuration;
 import util.Pair;
 
 import java.util.*;
@@ -12,7 +13,7 @@ abstract class Ranker {
 
     protected Query query;
     protected QueryProcessor manager;
-    //                         docID    sim
+    // the queue contains <docID, similarity> mappings
     private PriorityQueue<Pair<Integer, Double>> ranking;
 
     private Ranker(Query query, QueryProcessor manager) {
@@ -34,7 +35,7 @@ abstract class Ranker {
 
     public int[] getRanking() {
         int[] rankedResults = new int[QUERY_RESULT_SIZE];
-        for (int i = QUERY_RESULT_SIZE - 1; i >= 0; i--)
+        for (int i = ranking.size() - 1; i >= 0; i--)
             rankedResults[i] = Objects.requireNonNull(ranking.poll()).first;
         return rankedResults;
     }
@@ -52,11 +53,11 @@ abstract class Ranker {
 
     private static class SemanticRanker extends Ranker {
 
-        private static final double k = 1.5;
-        private static final double b = 0.75;
+        private static final double k = 1;
+        private static final double b = 0.3;
 
-        private static final double ENTITIES_WEIGHT = 0.5;
-        private static final double TERM_WEIGHT     = 0.3;
+        private static final double ENTITIES_WEIGHT = 0.4;
+        private static final double TERM_WEIGHT     = 0.4;
         private static final double NUMBERS_WEIGHT  = 0.1;
         private static final double SEMANTIC_WEIGHT = 0.1;
 
@@ -105,11 +106,19 @@ abstract class Ranker {
 
     private static class BM25Ranker extends Ranker {
 
-        private static final double k = 0.4;
-        private static final double b = 0.999;
+        private final double k;
+        private final double b;
 
         private BM25Ranker(Query query, QueryProcessor manager) {
             super(query, manager);
+            if (Configuration.getInstance().getUseStemmer()) {
+                k = 0.4;
+                b = 0.9;
+            }
+            else {
+                k = 1;
+                b =  0.3;
+            }
         }
 
         @Override

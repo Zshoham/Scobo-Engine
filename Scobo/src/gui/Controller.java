@@ -1,15 +1,21 @@
 package gui;
 
 import indexer.*;
+import indexer.Dictionary;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -22,11 +28,7 @@ import util.Pair;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
+import java.util.*;
 
 /**
  * Application Controller
@@ -52,6 +54,7 @@ public class Controller {
 
     private Dictionary dictionary;
     private DocumentMap documentMap;
+    private QueryProcessor queryProcessor;
 
     private final ObservableList<DictionaryEntry> viewableDictionary = FXCollections.observableArrayList();
 
@@ -64,8 +67,14 @@ public class Controller {
         indexPath.setText(new File(configuration.getIndexPath()).getAbsolutePath());
         logPath.setText(new File(configuration.getLogPath()).getAbsolutePath());
         useStemmer.selectedProperty().setValue(configuration.getUseStemmer());
-        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> configuration.setUseStemmer(newValue));
+        useSemantic.selectedProperty().setValue(configuration.getUseSemantic());
         useSemantic.selectedProperty().addListener((observable, oldValue, newValue) -> configuration.setUseSemantic(newValue));
+        useStemmer.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            configuration.setUseStemmer(newValue);
+            dictionary = null;
+            documentMap = null;
+            viewableDictionary.clear();
+        });
 
         parserBatchSize.setText(String.valueOf(configuration.getParserBatchSize()));
         parserBatchSize.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -147,8 +156,10 @@ public class Controller {
         showAlert("indexing completed successfully", message);
 
         try {
-            Files.copy(Paths.get(corpusPath.getText() + "/stop_words.txt"),
-                    Paths.get(indexPath.getText() + "/stop_words.txt"));
+            if (Files.notExists(Paths.get(indexPath.getText() + "/stop_words.txt"))) {
+                Files.copy(Paths.get(corpusPath.getText() + "/stop_words.txt"),
+                        Paths.get(indexPath.getText() + "/stop_words.txt"));
+            }
         } catch (IOException e) {
             showAlert("ERROR", "could not copy stop_words.txt to index location");
         }
@@ -158,7 +169,7 @@ public class Controller {
     public void onClickRunQuery() {
         updateOptions();
         if (dictionary == null || documentMap == null) {
-            showAlert("ERROR", "cannot process query when dictionary is not loaded.");
+            showAlert("ERROR", "cannot process query when dictionary\nis not loaded.");
             return;
         }
 
@@ -167,7 +178,20 @@ public class Controller {
             return;
         }
 
-        QueryProcessor queryProcessor = new QueryProcessor(configuration.getIndexPath(), dictionary, documentMap);
+        if (queryText.getText().isEmpty() && queryPath.getText().isEmpty()) {
+            showAlert("ERROR", "no query was submitted.");
+            return;
+        }
+
+        if (!queryText.getText().isEmpty())
+            handleTextQuery();
+
+        if (!queryPath.getText().isEmpty())
+            handleFileQuery();
+
+    }
+
+    private void handleTextQuery() {
         QueryResult textResult;
         if (!queryText.getText().isEmpty()) {
             long t0 = System.currentTimeMillis();
@@ -175,23 +199,23 @@ public class Controller {
             double queryTime = (System.currentTimeMillis() - t0) / 1000.0;
             showAlert("SUCCESS", "query results are ready!\n" +
                     " query processing took: " + queryTime);
-            showQueryResult(textResult.first());
+            showQueryResult(textResult);
         }
+    }
 
+    private void handleFileQuery() {
         QueryResult fileResult;
         Pair<Integer, String>[] queries = getQueriesFromFile();
         if (queries != null) {
             long t0 = System.currentTimeMillis();
             fileResult = queryProcessor.query(queries);
-            String resultPath = queryPath.getText().substring(0, queryPath.getText().lastIndexOf("/")) + "/result.txt";
-            saveQueryResults(fileResult, resultPath);
             double queryTime = (System.currentTimeMillis() - t0) / 1000.0;
             showAlert("SUCCESS", "query results are ready!\n" +
-                    "query processing took: " + queryTime + "\n" +
-                    "the query results were saved to: " + resultPath);
-        }
+                    "query processing took: " + queryTime);
 
-        System.out.println("no query submitted!");
+            String resultPath = directoryChooser.showDialog(stage).getAbsolutePath() + "/results.txt";
+            saveQueryResults(fileResult, resultPath);
+        }
     }
 
     @FXML
@@ -217,6 +241,7 @@ public class Controller {
         try {
             this.dictionary = Dictionary.loadDictionary();
             this.documentMap = DocumentMap.loadDocumentMap();
+            this.queryProcessor = new QueryProcessor(configuration.getIndexPath(), dictionary, documentMap);
             viewableDictionary.clear();
         } catch (IOException e) {
             showAlert("ERROR", "could not load dictionaries");
@@ -296,7 +321,8 @@ public class Controller {
 
                 // the syntax is "<title> title string" we want the "title string"
                 if (line.contains("<title>"))
-                    queryStrings.getLast().second.append(line.substring(line.indexOf('>') + 1)).append(".").append("\n");
+                    queryStrings.getLast().second.append(line.substring(line.indexOf('>') + 1).trim());
+
 
                 // the syntax is "<desc> Description: multiline string", we want the "multiline string"
                 if (line.contains("<desc> Description:")) {
@@ -362,9 +388,71 @@ public class Controller {
     }
 
     // shows the query result in a new window.
-    private void showQueryResult(int[] docs) {
-        for (int i = 0; i < docs.length; i++) {
-            System.out.println(documentMap.lookup(docs[i]).orElse(null));
+    private void showQueryResult(QueryResult result) {
+        int[] docs = result.first();
+        HashMap<String, List<Pair<String, Integer>>> docNames = new HashMap<>();
+        for (int docID : docs) {
+            Optional<DocumentMap.DocumentMapping> optionalMapping = documentMap.lookup(docID);
+            optionalMapping.ifPresent(doc -> docNames.put(doc.name, doc.dominantEntities));
         }
+
+        TableView<String> resultTable = new TableView<>();
+
+        ObservableList<String> documents = FXCollections.observableArrayList(docNames.keySet());
+
+        TableColumn<String, String> column = new TableColumn<>("DOCNO");
+        resultTable.getColumns().add(column);
+
+        column.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+        resultTable.setItems(documents);
+
+        Stage queryResultStage = new Stage();
+        StackPane root = new StackPane();
+
+        Button saveButton = new Button();
+        saveButton.setText("save result");
+        saveButton.setOnMouseClicked(mouseEvent -> {
+            String resultPath = directoryChooser.showDialog(stage).getAbsolutePath() + "/results.txt";
+            saveQueryResults(result, resultPath);
+        });
+
+        Button showButton = new Button();
+        showButton.setText("show entities");
+        showButton.setOnMouseClicked(mouseEvent -> {
+            String docName = resultTable.getSelectionModel().getSelectedItem();
+            if (docNames.containsKey(docName))
+                showDocumentEntities(docName, docNames.get(docName));
+        });
+
+        HBox buttons = new HBox(saveButton, showButton);
+        VBox base = new VBox(resultTable, buttons);
+        buttons.setFillHeight(true);
+        base.setFillWidth(true);
+        root.setPadding(new Insets(10));
+        root.setAlignment(Pos.CENTER);
+
+        root.getChildren().add(base);
+        Scene scene = new Scene(root);
+        queryResultStage.setScene(scene);
+        queryResultStage.show();
+    }
+
+    private void showDocumentEntities(String docName, List<Pair<String, Integer>> entities) {
+        if (entities.isEmpty()) {
+            showAlert("Could Not Find Entities in " + docName, "");
+            return;
+        }
+
+        entities.sort(Comparator.comparingInt(entity -> entity.second));
+        StringBuilder alertText = new StringBuilder();
+        for (Pair<String, Integer> entity : entities) {
+            alertText.append(entity.first.toUpperCase())
+                    .append(" appeared: ")
+                    .append(entity.second)
+                    .append(" times")
+                    .append("\n");
+        }
+
+        showAlert("Dominant Entities for " + docName, alertText.toString());
     }
 }

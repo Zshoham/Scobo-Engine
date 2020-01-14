@@ -20,7 +20,7 @@ public class Document {
         this.entities = new HashMap<>();
         this.terms = new HashMap<>();
         this.maxFrequency = 1;
-        this.length = -1;
+        this.length = 0;
     }
 
     public void addNumber(String term) {
