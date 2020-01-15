@@ -5,11 +5,19 @@ import parser.Document;
 import java.util.*;
 import java.util.function.Function;
 
+/**
+ * Query represents a parsed query, a query is a specialized document
+ * where we add additional id and semanticTerms fields.
+ */
 class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
 
     public HashMap<String, Integer> semanticTerms;
     public int id;
 
+    /**
+     * Creates a query from the document representing it.
+     * @param document a document that represents a query.
+     */
     public Query(Document document) {
         super(document.name);
         this.id = Integer.parseInt(this.name);
@@ -22,8 +30,13 @@ class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
         semanticTerms = new HashMap<>();
     }
 
-    public void addSemantic(String term) {
-        semanticTerms.compute(term, (key, frequency) -> {
+    /**
+     * adds a semantic field to the query, these are fields that do not
+     * count as normal terms and are used in the ranking.
+     * @param field the
+     */
+    public void addSemantic(String field) {
+        semanticTerms.compute(field, (key, frequency) -> {
             if (frequency == null)
                 return 1;
 
@@ -31,6 +44,11 @@ class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
         });
     }
 
+    /**
+     * @return the frequency of the term in the query, including semantic terms,
+     * exists as both a semantic field and a regular term its regular frequency
+     * will be returned.
+     */
     public int get(String term) {
         int res = terms.getOrDefault(term,0);
         if (res != 0)
@@ -47,7 +65,10 @@ class Query extends Document implements Iterable<Map.Entry<String, Integer>> {
         return semanticTerms.getOrDefault(term, 0);
     }
 
-    public int size() {
+    /**
+     * @return length of the query (semantic fields included).
+     */
+    public int length() {
         return length + semanticTerms.size();
     }
 

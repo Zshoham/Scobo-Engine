@@ -178,12 +178,11 @@ public class Configuration {
         return indexPath + "/"  + getUseStemmerPath() + "/inverted_file.txt";
     }
 
-    public String getGloVeStemmedPath() {
-        return Objects.requireNonNull(getClass().getClassLoader().getResource("GloSim.stemmed")).getPath();
-    }
+    public InputStream getGloVe() {
+        if (useStemmer)
+            return getClass().getClassLoader().getResourceAsStream("GloSim.stemmed");
 
-    public String getGloVeUnStemmedPath() {
-        return Objects.requireNonNull(getClass().getClassLoader().getResource("GloSim.unstemmed")).getPath();
+        return getClass().getClassLoader().getResourceAsStream("GloSim.unstemmed");
     }
 
     public String getDictSimPath() {

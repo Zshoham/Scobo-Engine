@@ -11,8 +11,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
+/**
+ * Manages the retrieval of results for a single query
+ */
 public class Searcher implements Runnable {
 
     QueryProcessor manager;
@@ -22,6 +24,12 @@ public class Searcher implements Runnable {
     // maps document ids to pairs <term, frequency> pairs.
     ConcurrentHashMap<Integer, Map<String, Integer>> relevantDocuments;
 
+    /**
+     * Constructs Searcher for a given query that is managed by the
+     * given manager.
+     * @param query the query the search documents for.
+     * @param manager the query processor that manages the searcher.
+     */
     public Searcher(Query query, QueryProcessor manager) {
         this.manager = manager;
         this.query = query;
@@ -44,9 +52,10 @@ public class Searcher implements Runnable {
         relevantDocuments.forEach((docID, tf) -> ranker.rank(docID, tf));
         manager.currentResult.updateResult(query.id, ranker.getRanking());
 
-        manager.CPUTasks.complete();
+        manager.searchTasks.complete();
     }
 
+    // semantically expands the query, adding semantic fields.
     private void expandQuery() {
         for (String term : query.terms.keySet()) {
             String[] sim = manager.gloSim.getOrDefault(term, null);
@@ -55,6 +64,7 @@ public class Searcher implements Runnable {
         }
     }
 
+    // semantically expands the term, adding fields that are semantically similar to the term.
     private void expandTerm(String[] sim) {
         int countAdded = 0;
         for (String word : sim) {
@@ -67,6 +77,7 @@ public class Searcher implements Runnable {
         }
     }
 
+    // loads all the documents that might be relevant to the query, from the inverted file.
     private void loadDocuments() throws IOException {
         Configuration config = Configuration.getInstance();
         RandomAccessFile termReader = new RandomAccessFile(config.getInvertedFilePath(), "r");
@@ -86,6 +97,7 @@ public class Searcher implements Runnable {
         }
     }
 
+    // parses a line of the inverted file, adding the documents in it to the relevant documents.
     private void addDocuments(String line) {
         // the format of the line in the inverted file is as follows t(|d,f)+
         String[] content = line.split("\\|");

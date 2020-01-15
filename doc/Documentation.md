@@ -415,6 +415,100 @@ Represents a terms posting (a line) in a posting file.
 
 
 
+### Searcher Class
+
+Manages the retrieval of results for a single query
+
+* `public Searcher(Query query, QueryProcessor manager)` : 
+  Constructs Searcher for a given query that is managed by the given manager.
+* `public void run()` : runs the searcher.
+* `private void expandQuery()` :  semantically expands the query, adding semantic fields.
+* `private void expandTerm(String[] sim)` : 
+  semantically expands the term, adding fields that are semantically similar to the term.
+* `private void loadDocuments() throws IOException` : 
+  loads all the documents that might be relevant to the query, from the inverted file.
+* `private void addDocuments(String line)` : 
+  parses a line of the inverted file, adding the documents in it to the relevant documents.
+
+## Query Package
+
+### Query Class
+
+Query represents a parsed query, a query is a specialized document where we add additional id and semanticTerms fields.
+
+* `public Query(Document document)` : Creates a query from the document representing it.
+* `public void addSemantic(String field)` :
+  adds a semantic field to the query, these are fields that do not count as normal terms and are used in the ranking.
+* `public int get(String term)` : 
+  returns the frequency of the term in the query, including semantic terms, exists as both a semantic field and a regular term its regular frequency will be returned.
+* `public int length()` : length of the query (semantic fields included).
+* `public Iterator<Map.Entry<String,Integer>> iterator()` : 
+  returns an iterator over all <term, frequency> mappings.
+* `QueryIterator` class: implements an iterator that concatenates iteration over the queries terms, numbers, entities, and semantic fields.
+
+
+
+### QueryProcessor Class
+
+Manages the querying process, may only process one request at a time, though a request may consist of multiple queries.
+
+* `public QueryProcessor(String indexPath, Dictionary dictionary, DocumentMap documentMap)` :
+  Initializes the query processor with the given dictionary and document map, this constructor blocks while loading the Similarity file.
+* `private void loadGloSim()` : loads the similarity vectors.
+* `public QueryResult query(String... queries)` :
+  Request for a group of queries to be processed, where the queries may be any free text, the query result can later be used to see the documents most similar to each of the queries.
+* `public QueryResult query(Pair<Integer,String>[] queries)` :
+  Request for a group of queries to be processed, where the queries may be any free text, but are provided with a query id, the query result can later be used to see the documents most similar to each of the queries.
+* `public void consume(Document document)` : initiates search using the given query.
+* `public void onFinishParser()` : 
+  notifies the query processor that parsing of the queries is complete, and no new consume calls will be made.
+* `private static List<String> asDocuments(String... queries)` :
+  creates queries that fit the format our parser expects from the given free text queries.
+* `private static List<String> asDocuments(Pair<Integer, String>[] queries)` : 
+  creates queries that fit the format our parser expects from the given `<queryID, query>` pairs.
+
+
+
+### QueryResult Class
+
+Holds query results possibly of multiple queries, if only one query was requested, use `first() ` in order to retrieve the ranking.
+
+* `QueryResult(String... queries)` : constructs query result from free text queries.
+* `QueryResult(Pair<Integer, String>[] queries)` : constructs query result from structured queries.
+* `void updateResult(int queryID, int[] ranking)` : sets the result for the given queryID.
+* `public Optional<int[]> resultOf(String query)` : return ranking for the given query if it exists.
+* `public Optional<int[]> resultOf(int queryID)` : return ranking for the given queryID if it exists.
+* `public int[] get()` : return one of the available results, if only one is available it will be returned.
+* `public Set<Map.Entry<Integer, int[]>> sorted()` : return a sorted view of the results.
+* `public Iterator<Map.Entry<Integer, int[]>> iterator()` : 
+  returns iterator over `<queryID, ranking>` pairs.
+* `public void forEach(Consumer<? super Map.Entry<Integer, int[]>> action)` :
+  applies the given action on each  `<queryID, ranking>` .
+* `public Spliterator<Map.Entry<Integer, int[]>> spliterator()` : 
+  returns spliterator over `<queryID, ranking>` pairs.
+
+
+
+### Ranker
+
+This class calculates the similarity between a query and documents and ranks the documents according to said similarity.
+
+* `private Ranker(Query query, QueryProcessor manager)` : 
+  constructs a ranker for a given query and QueryProcessor.
+
+* `protected void updateRanking(int docID, double sim)` : 
+  updates the ranking for a given docID that has the given similarity.
+* `public int[] getRanking()` : 
+  ranking of the docID's where the doc at index 0 is the one ranked the highest.
+* `public abstract void rank(int docID, Map<String,Integer> tf)` : 
+  Adds the given doc to the ranking.
+* `public static Ranker semantic(Query query, QueryProcessor manager)` : 
+  Creates a semantic Ranker.
+* `public static Ranker bm25(Query query, QueryProcessor manager)` : 
+  Creates a bm25 Ranker.
+* `SemanticRanker` class - implements the rank method using a semantic algorightm.
+* `BM25Ranker` class - implements the rank method using the bm25 algorightm.
+
 ## Gui Package
 
 ### GUI Class
@@ -443,8 +537,10 @@ This class *controls* the application during its runtime, most of its functional
   event, triggered when the user clicks the save button, this saves the currently selected configuration to disk so it will be available in the next run of the application.
 * `public void onClickRunIndex()` : 
   event, triggered when the user clicks the run index button , runs the parser/indexer and creates the inverted index files.
-* `public void onClickReset()` :
+* `public void onClickRunQuery()` :
   event, triggered when the user clicks the run query button, runs the query processor on the provided queries and produces a result file or a window with the results.
+*  `private void handleTextQuery()` : handles a free text query.
+*  `private void handleFileQuery()` : handles a query file.
 * `public void onClickReset()` : 
   event, triggered when the user clicks the reset button, clears the memory and disk of the dictionary and inverted file. 
 * `public void onClickLoadDict()` : 
@@ -453,9 +549,12 @@ This class *controls* the application during its runtime, most of its functional
   event, triggered when the user clicks the show dictionary button, opens a window with a table view containing two columns, all the terms as they appear in the dictionary, and their frequencies in the corpus.
 * `private void makeViewable()` : creates a sorted view of the dictionary.
 * `private void showAlert(String title, String message)` : shows alert with given text and message.
-*  `private String[] getQueriesFromFile()` : parses the query file and returns an array of queries.
+*  `private Pair<Integer, String>[] getQueriesFromFile()` : 
+   parses the query file and returns an array of queries.
 *  `private void saveQueryResults(QueryResult result)` : saves the query results as a file.
-*  `private void showQueryResult(List<Integer> first)` : shows the query result in a new window.
+*  `private void showQueryResult(QueryResult result)` : shows the query result in a new window.
+*  `private void showDocumentEntities(String docName, List<Pair<String, Integer>> entities)` :
+   displays alert showing the given dominant entities with the document name.
 
 ### DictionaryEntry Class
 
@@ -500,6 +599,8 @@ Scobo Engine Configuration manager. Handles the creation, loading, and updating 
   * `public String getDictionaryPath()`
   * `public String getDocumentMapPath()`
   * `public String getInvertedFilePath()`
+  * `public InputStream getGloVe()`
+  * `public String getDictSimPath()`
 * `private String getUseStemmerPath()` : 
   returns the correct folder name for the index according to the value of `useStemmer` .
 

@@ -5,14 +5,12 @@ import indexer.Dictionary;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -102,6 +100,7 @@ public class Controller {
         File browsedFile = directoryChooser.showDialog(stage);
         if (browsedFile != null)
             corpusPath.setText(browsedFile.getAbsolutePath());
+        updateOptions();
     }
 
     @FXML
@@ -110,6 +109,7 @@ public class Controller {
         File browsedFile = directoryChooser.showDialog(stage);
         if (browsedFile != null)
             indexPath.setText(browsedFile.getAbsolutePath());
+        updateOptions();
     }
 
     @FXML
@@ -118,6 +118,7 @@ public class Controller {
         File browsedFile = fileChooser.showOpenDialog(stage);
         if (browsedFile != null)
             queryPath.setText(browsedFile.getAbsolutePath());
+        updateOptions();
     }
 
     @FXML
@@ -126,6 +127,7 @@ public class Controller {
         File browsedFile = fileChooser.showOpenDialog(stage);
         if (browsedFile != null)
             logPath.setText(browsedFile.getAbsolutePath());
+        updateOptions();
 
     }
 
@@ -191,6 +193,7 @@ public class Controller {
 
     }
 
+    // handles a free text query.
     private void handleTextQuery() {
         QueryResult textResult;
         if (!queryText.getText().isEmpty()) {
@@ -203,6 +206,7 @@ public class Controller {
         }
     }
 
+    // handles a query file.
     private void handleFileQuery() {
         QueryResult fileResult;
         Pair<Integer, String>[] queries = getQueriesFromFile();
@@ -389,7 +393,8 @@ public class Controller {
 
     // shows the query result in a new window.
     private void showQueryResult(QueryResult result) {
-        int[] docs = result.first();
+        int[] docs = result.get();
+        // create map of documentName -> dominant entities.
         HashMap<String, List<Pair<String, Integer>>> docNames = new HashMap<>();
         for (int docID : docs) {
             Optional<DocumentMap.DocumentMapping> optionalMapping = documentMap.lookup(docID);
@@ -437,6 +442,7 @@ public class Controller {
         queryResultStage.show();
     }
 
+    // displays alert showing the given dominant entities with the document name.
     private void showDocumentEntities(String docName, List<Pair<String, Integer>> entities) {
         if (entities.isEmpty()) {
             showAlert("Could Not Find Entities in " + docName, "");
