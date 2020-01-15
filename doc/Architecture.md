@@ -41,6 +41,8 @@ The mappings are written to a file sorted alphabetically by the term string, suc
 
 When all documents have been written into posting files, the indexer initiates a merge, during the merge all the posting files are read concurrently line by line. In each iteration we check to see which is the alphabetically minimal term in all the lines, then we merge all the lines containing said term and write the merged line into the inverted file, at this point the dictionary pointer is updated to point to the new line written to the inverted file.
 
+
+
 ### Semantic Analysis
 
 As mentioned above a map of word -> similar words is used for semantic improvement of the queries, this map was created from the GloVe project in the following process:
@@ -49,7 +51,7 @@ As mentioned above a map of word -> similar words is used for semantic improveme
    * first clean the file of all non words and convert all the capitalized words to lower case.
    * create a new file where all the words are stemmed and if two or more words have the same stem the stems vector will be the average of all the vectors of the unstemmed words.
    * run a similarity function between each word and all the other words (we used simple cosine similarity),  save the 10 words with the heights similarity for each word.
-2. Since running the above process for the larger GloVe files would take too ling we ran a similar process with an added step for cleaning, we took a dictionary of English words form GitHub - [LINK HERE] and in the cleaning step we removed all words that do not appear in the English dictionary, this produced a much smaller file after the clean step on which we ran the reset of the steps described in step 1.
+2. Since running the above process for the larger GloVe files would take too ling we ran a similar process with an added step for cleaning, we took a dictionary of English words form GitHub - https://github.com/dwyl/english-words/blob/master/words_alpha.txtand in the cleaning step we removed all words that do not appear in the English dictionary, this produced a much smaller file after the clean step on which we ran the reset of the steps described in step 1.
 3. Now we have 4 files, two files generated from the small GloVe and two from the big GloVe, lastly we merged the files to produce two files, one stemmed and one unstemmed, for the merge we simply took the union of both files and for any intersection we replaced the entry from the file generated from the small GloVe by the one generated from the big GloVe (this because presumably the similarity generated from the bigger GloVe file is more generally accurate since the data set is much bigger)
 
 Now we have two maps of word -> similar words, one for stemmed words and one for unstemmed words, when the parser finishes its work and all the words from the corpus are present in the dictionary, we will load the appropriate file (depending on if the user chose to run the engine with stemming or not) and compare it with the dictionary we created, we will then save a smaller file containing only words found in the dictionary, though the words in the similarity vector might still not be available in the dictionary, those words will simply be ignored in the query analysis.
