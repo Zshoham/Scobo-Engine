@@ -307,7 +307,13 @@ public final class Dictionary {
      */
     public void clear() throws IOException {
         dictionary.clear();
-        entities.clear();
+
+        if (entities != null)
+            entities.clear();
+
+        if (entityDictionary != null)
+            entityDictionary.clear();
+
         Files.deleteIfExists(Paths.get(getPath()));
     }
 

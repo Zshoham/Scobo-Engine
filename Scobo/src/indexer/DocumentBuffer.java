@@ -33,7 +33,7 @@ class DocumentBuffer {
 
     synchronized void addToBuffer(Document document) {
         documents.add(document);
-        termCount += document.entities.size() + document.entities.size();
+        termCount += document.length;
         if (termCount >= BUFFER_TERM_CAPACITY)
             flush();
     }
